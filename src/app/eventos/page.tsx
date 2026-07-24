@@ -44,11 +44,11 @@ export default async function EventosPage({
       <Card>
         <CardContent className="pt-6">
           <form className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1">
+            <div className="space-y-1 space-x-2">
               <label className="text-xs text-muted-foreground">Cliente</label>
               <Input name="cliente" defaultValue={cliente} placeholder="Buscar por nome..." className="w-56" />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 space-x-2">
               <label className="text-xs text-muted-foreground">Tipo de evento</label>
               <select
                 name="tipo"
