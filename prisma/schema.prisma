@@ -1,0 +1,266 @@
+// Prisma schema — Plataforma Alpha
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Usuários / Auth
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  CEO
+  DIRETOR
+  PROFIT
+  FRANQUEADO
+  OPERACIONAL
+}
+
+model Usuario {
+  id        String    @id @default(cuid())
+  nome      String
+  email     String    @unique
+  senhaHash String    @map("senha_hash")
+  role      Role
+  ativo     Boolean   @default(true)
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  clientesCriados     Cliente[]   @relation("ClienteCreatedBy")
+  clientesAtualizados Cliente[]   @relation("ClienteUpdatedBy")
+  eventosResponsavel  Evento[]    @relation("EventoUsuarioResponsavel")
+  auditorias          Auditoria[]
+
+  @@map("usuarios")
+}
+
+// ---------------------------------------------------------------------------
+// Profits / Franquias
+// ---------------------------------------------------------------------------
+
+model Profit {
+  id        String    @id @default(cuid())
+  nome      String
+  email     String    @unique
+  telefone  String?
+  ativo     Boolean   @default(true)
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  historicoFranquias FranquiaProfitHistorico[]
+
+  @@map("profits")
+}
+
+model Franquia {
+  id        String    @id @default(cuid())
+  nome      String
+  cidade    String
+  estado    String
+  telefone  String?
+  email     String?
+  cnpj      String?   @unique
+  ativo     Boolean   @default(true)
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  historicoProfit   FranquiaProfitHistorico[]
+  historicoCarteira ClienteCarteira[]
+
+  @@map("franquias")
+}
+
+/// Histórico de qual Profit era responsável por uma franquia em cada período.
+model FranquiaProfitHistorico {
+  id         String    @id @default(cuid())
+  franquiaId String    @map("franquia_id")
+  profitId   String    @map("profit_id")
+  dataInicio DateTime  @map("data_inicio")
+  dataFim    DateTime? @map("data_fim")
+  ativo      Boolean   @default(true)
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  franquia Franquia @relation(fields: [franquiaId], references: [id])
+  profit   Profit   @relation(fields: [profitId], references: [id])
+
+  @@index([franquiaId, ativo])
+  @@index([profitId])
+  @@map("franquia_profit_historico")
+}
+
+// ---------------------------------------------------------------------------
+// Clientes
+// ---------------------------------------------------------------------------
+
+model Cliente {
+  id          String    @id @default(cuid())
+  nome        String
+  documento   String    @unique
+  email       String?
+  telefone    String?
+  segmento    String?
+  observacoes String?
+  deletedAt   DateTime? @map("deleted_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdById String?   @map("created_by")
+  updatedById String?   @map("updated_by")
+
+  criadoPor     Usuario? @relation("ClienteCreatedBy", fields: [createdById], references: [id])
+  atualizadoPor Usuario? @relation("ClienteUpdatedBy", fields: [updatedById], references: [id])
+
+  carteiraHistorico ClienteCarteira[]
+  contratos         Contrato[]
+  eventos           Evento[]
+
+  @@map("clientes")
+}
+
+/// Histórico completo de movimentação do cliente entre franquias.
+/// O cliente NUNCA armazena a franquia atual diretamente — apenas via este histórico.
+model ClienteCarteira {
+  id         String    @id @default(cuid())
+  clienteId  String    @map("cliente_id")
+  franquiaId String    @map("franquia_id")
+  dataInicio DateTime  @map("data_inicio")
+  dataFim    DateTime? @map("data_fim")
+  ativo      Boolean   @default(true)
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  cliente  Cliente  @relation(fields: [clienteId], references: [id])
+  franquia Franquia @relation(fields: [franquiaId], references: [id])
+
+  @@index([clienteId, ativo])
+  @@index([franquiaId])
+  @@map("cliente_carteira")
+}
+
+// ---------------------------------------------------------------------------
+// Contratos
+// ---------------------------------------------------------------------------
+
+enum TipoContrato {
+  MENSAL
+  TRIMESTRAL
+  SEMESTRAL
+  ANUAL
+}
+
+enum StatusContrato {
+  ATIVO
+  PAUSADO
+  ENCERRADO
+  CHURN
+}
+
+model Contrato {
+  id                  String         @id @default(cuid())
+  clienteId           String         @map("cliente_id")
+  plano               String
+  tipoContrato        TipoContrato   @map("tipo_contrato")
+  valorContrato       Decimal        @map("valor_contrato") @db.Decimal(14, 2)
+  valorMensal         Decimal        @map("valor_mensal") @db.Decimal(14, 2)
+  inicioContrato      DateTime       @map("inicio_contrato")
+  fimContrato         DateTime?      @map("fim_contrato")
+  renovacaoAutomatica Boolean        @default(false) @map("renovacao_automatica")
+  status              StatusContrato @default(ATIVO)
+  dataSaida           DateTime?      @map("data_saida")
+  deletedAt           DateTime?      @map("deleted_at")
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+
+  cliente Cliente  @relation(fields: [clienteId], references: [id])
+  eventos Evento[]
+
+  @@index([clienteId])
+  @@index([status])
+  @@map("contratos")
+}
+
+// ---------------------------------------------------------------------------
+// Eventos — tabela mais importante do sistema
+// ---------------------------------------------------------------------------
+
+enum TipoEvento {
+  CRIACAO_CLIENTE
+  NOVO_CONTRATO
+  RENOVACAO
+  PAUSA
+  RETOMADA
+  CHURN
+  ALTERACAO_PLANO
+  ALTERACAO_VALOR
+  TRANSFERENCIA_FRANQUIA
+  ALTERACAO_PROFIT
+  OBSERVACAO
+}
+
+model Evento {
+  id                   String     @id @default(cuid())
+  clienteId            String     @map("cliente_id")
+  contratoId           String?    @map("contrato_id")
+  tipoEvento           TipoEvento @map("tipo_evento")
+  dataEvento           DateTime   @map("data_evento")
+  motivo               String?
+  observacao           String?
+  usuarioResponsavelId String     @map("usuario_responsavel")
+  createdAt            DateTime   @default(now()) @map("created_at")
+
+  cliente            Cliente   @relation(fields: [clienteId], references: [id])
+  contrato           Contrato? @relation(fields: [contratoId], references: [id])
+  usuarioResponsavel Usuario   @relation("EventoUsuarioResponsavel", fields: [usuarioResponsavelId], references: [id])
+
+  @@index([clienteId, dataEvento])
+  @@index([tipoEvento])
+  @@index([dataEvento])
+  @@map("eventos")
+}
+
+// ---------------------------------------------------------------------------
+// Auditoria — nenhum dado é excluído fisicamente (soft delete em todo o resto)
+// ---------------------------------------------------------------------------
+
+model Auditoria {
+  id            String   @id @default(cuid())
+  tabela        String
+  registroId    String   @map("registro_id")
+  campo         String
+  valorAnterior String?  @map("valor_anterior")
+  valorNovo     String?  @map("valor_novo")
+  usuarioId     String?  @map("usuario_id")
+  dataAlteracao DateTime @default(now()) @map("data_alteracao")
+
+  usuario Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@index([tabela, registroId])
+  @@map("auditoria")
+}
+
+// ---------------------------------------------------------------------------
+// Migração de dados legados — mapeamento origem -> destino
+// Garante idempotência: reprocessar a planilha não duplica registros, apenas
+// atualiza os já importados (upsert por origemId + tabelaDestino).
+// ---------------------------------------------------------------------------
+
+model ImportacaoLegado {
+  id             String   @id @default(cuid())
+  origemId       String   @map("origem_id")
+  tabelaDestino  String   @map("tabela_destino")
+  registroId     String   @map("registro_id")
+  loteImportacao String   @map("lote_importacao")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([origemId, tabelaDestino])
+  @@index([loteImportacao])
+  @@map("legado_importacoes")
+}
