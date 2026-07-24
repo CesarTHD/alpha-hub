@@ -108,6 +108,8 @@ model Cliente {
   documento   String    @unique
   email       String?
   telefone    String?
+  cidade      String?
+  estado      String?
   segmento    String?
   observacoes String?
   deletedAt   DateTime? @map("deleted_at")

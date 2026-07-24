@@ -24,6 +24,8 @@ type Cliente = {
   documento: string;
   email: string | null;
   telefone: string | null;
+  cidade: string | null;
+  estado: string | null;
   segmento: string | null;
   observacoes: string | null;
 };
@@ -73,6 +75,16 @@ export function EditarClienteDialog({ cliente }: { cliente: Cliente }) {
             <div className="space-y-2">
               <Label htmlFor="telefone">Telefone</Label>
               <Input id="telefone" name="telefone" defaultValue={cliente.telefone ?? ""} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="cidade">Cidade</Label>
+              <Input id="cidade" name="cidade" defaultValue={cliente.cidade ?? ""} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="estado">Estado</Label>
+              <Input id="estado" name="estado" maxLength={2} placeholder="UF" defaultValue={cliente.estado ?? ""} />
             </div>
           </div>
           <div className="space-y-2">

@@ -58,9 +58,19 @@ export function NovoClienteForm({ franquias }: { franquias: Franquia[] }) {
               <Input id="telefone" name="telefone" />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="cidade">Cidade</Label>
+              <Input id="cidade" name="cidade" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="estado">Estado</Label>
+              <Input id="estado" name="estado" maxLength={2} placeholder="UF" />
+            </div>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="segmento">Segmento</Label>
-            <Input id="segmento" name="segmento" placeholder="Ex.: Alimentação, Varejo..." />
+            <Input id="segmento" name="segmento" placeholder="Ex.: Pizzaria, Restaurante..." />
           </div>
           <div className="space-y-2">
             <Label htmlFor="franquiaId">Franquia</Label>

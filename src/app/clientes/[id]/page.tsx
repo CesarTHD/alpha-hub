@@ -85,6 +85,8 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
                 documento: cliente.documento,
                 email: cliente.email,
                 telefone: cliente.telefone,
+                cidade: cliente.cidade,
+                estado: cliente.estado,
                 segmento: cliente.segmento,
                 observacoes: cliente.observacoes,
               }}
@@ -96,6 +98,12 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
             </p>
             <p>
               <span className="text-muted-foreground">Telefone:</span> {cliente.telefone ?? "—"}
+            </p>
+            <p>
+              <span className="text-muted-foreground">Cidade/Estado:</span>{" "}
+              {cliente.cidade || cliente.estado
+                ? `${cliente.cidade ?? "—"}/${cliente.estado ?? "—"}`
+                : "—"}
             </p>
             <p>
               <span className="text-muted-foreground">Segmento:</span> {cliente.segmento ?? "—"}
