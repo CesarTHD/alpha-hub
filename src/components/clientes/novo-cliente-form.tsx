@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,17 +15,32 @@ import {
 import { SubmitButton } from "@/components/submit-button";
 import { createClienteComContrato } from "@/lib/actions/clientes";
 import { initialActionState } from "@/lib/actions/action-state";
+import { TipoContrato } from "@/generated/prisma/enums";
 
 type Franquia = { id: string; nome: string; cidade: string; estado: string };
 
 export function NovoClienteForm({ franquias }: { franquias: Franquia[] }) {
   const [state, formAction] = useActionState(createClienteComContrato, initialActionState);
+  const [valorContrato, setValorContrato] = useState("");
+  const [valorMRR, setValorMRR] = useState(0);
+  const [tipoContrato, setTipoContrato] = useState("MENSAL");
 
   useEffect(() => {
     if (state && !state.ok && state.message) {
       toast.error(state.message);
     }
   }, [state]);
+
+  const valor = parseFloat(valorContrato);
+
+  const valorMensal = !isNaN(valor)
+    ? {
+      MENSAL: valor,
+      TRIMESTRAL: valor / 3,
+      SEMESTRAL: valor / 6,
+      ANUAL: valor / 12,
+    }[tipoContrato] ?? 0
+    : 0;
 
   return (
     <form action={formAction} className="grid gap-6 lg:grid-cols-2">
@@ -107,7 +122,7 @@ export function NovoClienteForm({ franquias }: { franquias: Franquia[] }) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="tipoContrato">Tipo de contrato</Label>
-            <Select name="tipoContrato" defaultValue="MENSAL">
+            <Select name="tipoContrato" defaultValue="MENSAL" onValueChange={(e) => setTipoContrato(e)}>
               <SelectTrigger id="tipoContrato" className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -122,14 +137,30 @@ export function NovoClienteForm({ franquias }: { franquias: Franquia[] }) {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="valorContrato">Valor total do contrato</Label>
-              <Input id="valorContrato" name="valorContrato" type="number" step="0.01" required />
+              <Input
+                id="valorContrato"
+                value={valorContrato}
+                onChange={(e) => setValorContrato(e.target.value)}
+                name="valorContrato"
+                type="number"
+                step="0.01"
+                required
+              />
               {state?.fieldErrors?.valorContrato && (
                 <p className="text-sm text-destructive">{state.fieldErrors.valorContrato[0]}</p>
               )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="valorMensal">Valor mensal (MRR)</Label>
-              <Input id="valorMensal" name="valorMensal" type="number" step="0.01" required />
+              <Input
+                id="valorMensal"
+                value={valorMensal}
+                name="valorMensal"
+                type="number"
+                step="0.01"
+                required
+                readOnly
+              />
               {state?.fieldErrors?.valorMensal && (
                 <p className="text-sm text-destructive">{state.fieldErrors.valorMensal[0]}</p>
               )}
