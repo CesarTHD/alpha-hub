@@ -33,6 +33,8 @@ const statusVariant: Record<string, "default" | "secondary" | "destructive" | "o
   CHURN: "destructive",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function ClienteDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 

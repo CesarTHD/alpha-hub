@@ -14,6 +14,8 @@ import { TrocaProfitDialog } from "@/components/franquias/troca-profit-dialog";
 import { FranquiaAtivaToggle } from "@/components/franquias/franquia-ativa-toggle";
 import { ExcluirFranquiaButton } from "@/components/franquias/excluir-franquia-button";
 
+export const dynamic = "force-dynamic";
+
 export default async function FranquiasPage() {
   // Sequential on purpose, and no filtered `_count` on a nested relation:
   // both concurrent queries (Promise.all) and filtered relation counts have

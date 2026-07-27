@@ -17,6 +17,8 @@ import { formatCurrency } from "@/lib/format";
 import { Plus } from "lucide-react";
 import type { Prisma, StatusContrato } from "@/generated/prisma/client";
 
+export const dynamic = "force-dynamic";
+
 const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   ATIVO: "default",
   PAUSADO: "outline",

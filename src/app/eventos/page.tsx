@@ -19,6 +19,8 @@ import type { Prisma } from "@/generated/prisma/client";
 
 const TIPOS_EVENTO = Object.keys(tipoEventoLabel);
 
+export const dynamic = "force-dynamic";
+
 export default async function EventosPage({
   searchParams,
 }: {

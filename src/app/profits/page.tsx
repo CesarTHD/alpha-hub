@@ -13,6 +13,8 @@ import { ProfitFormDialog } from "@/components/profits/profit-form-dialog";
 import { ProfitAtivoToggle } from "@/components/profits/profit-ativo-toggle";
 import { ExcluirProfitButton } from "@/components/profits/excluir-profit-button";
 
+export const dynamic = "force-dynamic";
+
 export default async function ProfitsPage() {
   // No filtered `_count` on a nested relation here — see comment in
   // src/app/franquias/page.tsx for why (Prisma 7.9 + adapter-pg query-engine bug).
