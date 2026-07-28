@@ -1,4 +1,4 @@
-# Diagrama ERD — AlphaHUB Comercial
+# Diagrama ERD — AlphaHUB Operacional
 
 Gerado a partir de `prisma/schema.prisma`. Ver também `prisma/migrations/0001_init/migration.sql` para o DDL aplicado.
 

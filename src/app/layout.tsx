@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AlphaHUB - Comercial",
+  title: "AlphaHUB - Operacional",
   description: "Gestão de clientes, contratos e eventos da Alpha",
 };
 

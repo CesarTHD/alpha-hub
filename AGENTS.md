@@ -4,7 +4,7 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-# AlphaHUB - Comercial
+# AlphaHUB - Operacional
 
 Gestão de clientes, contratos e eventos da Alpha (franquias). Full PRD context lives only in
 chat history from the session that built this — this file is the durable summary.

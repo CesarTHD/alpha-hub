@@ -18,7 +18,7 @@ export function MobileNav({ role }: { role: Role }) {
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-64 p-0">
-        <SheetTitle className="px-4 pt-4 text-base">AlphaHUB - Comercial</SheetTitle>
+        <SheetTitle className="px-4 pt-4 text-base">AlphaHUB - Operacional</SheetTitle>
         <SidebarNav role={role} onNavigate={() => setOpen(false)} />
       </SheetContent>
     </Sheet>

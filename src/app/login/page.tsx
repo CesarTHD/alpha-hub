@@ -11,7 +11,7 @@ export default async function LoginPage({
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-6 text-center">
         <div className="space-y-1">
-          <h1 className="text-xl font-semibold tracking-tight">AlphaHUB - Comercial</h1>
+          <h1 className="text-xl font-semibold tracking-tight">AlphaHUB - Operacional</h1>
           <p className="text-sm text-muted-foreground">
             Gestão de clientes, contratos e eventos da Alpha
           </p>
