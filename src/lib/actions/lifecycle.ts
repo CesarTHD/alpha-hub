@@ -23,7 +23,7 @@ const renovacaoSchema = z.object({
   clienteId: z.string().min(1),
   contratoAnteriorId: z.string().min(1),
   plano: z.string().trim().min(1, "Informe o plano"),
-  tipoContrato: z.enum(["MENSAL", "TRIMESTRAL", "SEMESTRAL", "ANUAL"]),
+  tipoContrato: z.enum(["MENSAL", "TRIMESTRAL", "QUADRIMESTRAL", "SEMESTRAL", "ANUAL"]),
   valorContrato: z.coerce.number().positive("Informe o valor total"),
   valorMensal: z.coerce.number().positive("Informe o valor mensal"),
   inicioContrato: z.string().min(1, "Informe a data de início"),

@@ -157,6 +157,7 @@ model ClienteCarteira {
 enum TipoContrato {
   MENSAL
   TRIMESTRAL
+  QUADRIMESTRAL
   SEMESTRAL
   ANUAL
 }

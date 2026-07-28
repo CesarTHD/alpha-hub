@@ -37,6 +37,7 @@ export function NovoClienteForm({ franquias }: { franquias: Franquia[] }) {
     ? {
       MENSAL: valor,
       TRIMESTRAL: valor / 3,
+      QUADRIMESTRAL: valor / 4,
       SEMESTRAL: valor / 6,
       ANUAL: valor / 12,
     }[tipoContrato] ?? 0
@@ -129,6 +130,7 @@ export function NovoClienteForm({ franquias }: { franquias: Franquia[] }) {
               <SelectContent>
                 <SelectItem value="MENSAL">Mensal</SelectItem>
                 <SelectItem value="TRIMESTRAL">Trimestral</SelectItem>
+                <SelectItem value="QUADRIMESTRAL">Quadrimestral</SelectItem>
                 <SelectItem value="SEMESTRAL">Semestral</SelectItem>
                 <SelectItem value="ANUAL">Anual</SelectItem>
               </SelectContent>

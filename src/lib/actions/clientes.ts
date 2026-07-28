@@ -20,7 +20,7 @@ const novoClienteSchema = z.object({
   segmento: optionalText(z.string().trim()),
   franquiaId: z.string().min(1, "Selecione a franquia"),
   plano: z.string().trim().min(1, "Informe o plano"),
-  tipoContrato: z.enum(["MENSAL", "TRIMESTRAL", "SEMESTRAL", "ANUAL"]),
+  tipoContrato: z.enum(["MENSAL", "TRIMESTRAL", "QUADRIMESTRAL", "SEMESTRAL", "ANUAL"]),
   valorContrato: z.coerce.number().positive("Informe o valor total do contrato"),
   valorMensal: z.coerce.number().positive("Informe o valor mensal"),
   inicioContrato: z.string().min(1, "Informe a data de início"),

@@ -71,6 +71,7 @@ export function RenovacaoDialog({ clienteId, contrato }: { clienteId: string; co
               <SelectContent>
                 <SelectItem value="MENSAL">Mensal</SelectItem>
                 <SelectItem value="TRIMESTRAL">Trimestral</SelectItem>
+                <SelectItem value="QUADRIMESTRAL">Quadrimestral</SelectItem>
                 <SelectItem value="SEMESTRAL">Semestral</SelectItem>
                 <SelectItem value="ANUAL">Anual</SelectItem>
               </SelectContent>
