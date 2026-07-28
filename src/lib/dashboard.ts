@@ -1,5 +1,7 @@
 import { db } from "@/lib/db";
-import type { TipoContrato } from "@/generated/prisma/client";
+import type { Prisma, TipoContrato } from "@/generated/prisma/client";
+
+export type DashboardScope = { franquiaId: string } | null;
 
 function startOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -19,31 +21,38 @@ function contarPorSegmento(rows: { tipoContrato: TipoContrato }[]) {
   return { total: rows.length, mrr, tcv };
 }
 
-export async function getDashboardData() {
+export async function getDashboardData(scope: DashboardScope = null) {
   const agora = new Date();
   const inicioMes = startOfMonth(agora);
+
+  const contratoScope: Prisma.ContratoWhereInput = scope
+    ? { cliente: { carteiraHistorico: { some: { ativo: true, franquiaId: scope.franquiaId } } } }
+    : {};
+  const clienteScope: Prisma.ClienteWhereInput = scope
+    ? { carteiraHistorico: { some: { ativo: true, franquiaId: scope.franquiaId } } }
+    : {};
 
   // Sequential on purpose — see comment in src/app/franquias/page.tsx:
   // concurrent Prisma queries over the same pool have been observed to
   // cross-contaminate result rows under Prisma 7.9 + @prisma/adapter-pg
   // against `prisma dev`'s local proxy.
   const clientesAtivosRows = await db.contrato.findMany({
-    where: { status: "ATIVO" },
+    where: { status: "ATIVO", ...contratoScope },
     distinct: ["clienteId"],
     select: { clienteId: true, tipoContrato: true },
   });
   const clientesPausadosRows = await db.contrato.findMany({
-    where: { status: "PAUSADO" },
+    where: { status: "PAUSADO", ...contratoScope },
     distinct: ["clienteId"],
     select: { clienteId: true, tipoContrato: true },
   });
   const clientesChurnRows = await db.contrato.findMany({
-    where: { status: "CHURN" },
+    where: { status: "CHURN", ...contratoScope },
     distinct: ["clienteId"],
     select: { clienteId: true, tipoContrato: true },
   });
   const contratosAtivos = await db.contrato.findMany({
-    where: { status: "ATIVO" },
+    where: { status: "ATIVO", ...contratoScope },
     select: {
       clienteId: true,
       tipoContrato: true,
@@ -52,14 +61,14 @@ export async function getDashboardData() {
     },
   });
   const franquias = await db.franquia.findMany({
-    where: { deletedAt: null },
+    where: { deletedAt: null, ...(scope ? { id: scope.franquiaId } : {}) },
     include: {
       historicoProfit: { where: { ativo: true }, include: { profit: true } },
       historicoCarteira: { where: { ativo: true }, select: { clienteId: true } },
     },
   });
   const clientes = await db.cliente.findMany({
-    where: { deletedAt: null },
+    where: { deletedAt: null, ...clienteScope },
     select: {
       id: true,
       createdAt: true,

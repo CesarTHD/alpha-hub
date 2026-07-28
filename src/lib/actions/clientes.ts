@@ -5,8 +5,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/current-user";
+import { canCreateCliente, canEditCliente, hasFranquiaScope } from "@/lib/rbac";
 import type { ActionState } from "./action-state";
 import { optionalText } from "./zod-helpers";
+import { requireClienteAccess } from "./guards";
 
 const novoClienteSchema = z.object({
   nome: z.string().trim().min(2, "Informe o nome do cliente"),
@@ -50,6 +52,14 @@ export async function createClienteComContrato(
     return { ok: false, fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
+  const usuario = await getCurrentUser();
+  if (!canCreateCliente(usuario)) {
+    return { ok: false, message: "Acesso negado." };
+  }
+  if (hasFranquiaScope(usuario) && parsed.data.franquiaId !== usuario.franquiaId) {
+    return { ok: false, fieldErrors: { franquiaId: ["Você só pode cadastrar clientes na sua própria franquia"] } };
+  }
+
   const documentoExistente = await db.cliente.findFirst({
     where: { documento: parsed.data.documento, deletedAt: null },
   });
@@ -57,7 +67,6 @@ export async function createClienteComContrato(
     return { ok: false, fieldErrors: { documento: ["Já existe um cliente com este documento"] } };
   }
 
-  const usuario = await getCurrentUser();
   const inicio = new Date(parsed.data.inicioContrato);
 
   const cliente = await db.$transaction(async (tx) => {
@@ -140,7 +149,10 @@ export async function updateClienteDados(
     return { ok: false, fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
-  const usuario = await getCurrentUser();
+  const { usuario, allowed } = await requireClienteAccess(id);
+  if (!allowed || !canEditCliente(usuario)) {
+    return { ok: false, message: "Acesso negado." };
+  }
 
   await db.cliente.update({
     where: { id },

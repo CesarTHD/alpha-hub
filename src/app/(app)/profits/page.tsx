@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/layout/page-header";
 import {
@@ -12,10 +13,15 @@ import { Badge } from "@/components/ui/badge";
 import { ProfitFormDialog } from "@/components/profits/profit-form-dialog";
 import { ProfitAtivoToggle } from "@/components/profits/profit-ativo-toggle";
 import { ExcluirProfitButton } from "@/components/profits/excluir-profit-button";
+import { getCurrentUser } from "@/lib/current-user";
+import { canManageProfits, hasFranquiaScope } from "@/lib/rbac";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProfitsPage() {
+  const usuario = await getCurrentUser();
+  if (hasFranquiaScope(usuario)) redirect("/clientes");
+  const podeGerenciar = canManageProfits(usuario);
   // No filtered `_count` on a nested relation here — see comment in
   // src/app/franquias/page.tsx for why (Prisma 7.9 + adapter-pg query-engine bug).
   const profits = await db.profit.findMany({ where: { deletedAt: null }, orderBy: { nome: "asc" } });
@@ -31,7 +37,7 @@ export default async function ProfitsPage() {
       <PageHeader
         title="Profits"
         description="Responsáveis que gerenciam uma ou mais franquias."
-        actions={<ProfitFormDialog />}
+        actions={podeGerenciar ? <ProfitFormDialog /> : undefined}
       />
 
       <Table>
@@ -58,11 +64,13 @@ export default async function ProfitsPage() {
                 </Badge>
               </TableCell>
               <TableCell>
-                <div className="flex justify-end gap-1">
-                  <ProfitFormDialog profit={p} />
-                  <ProfitAtivoToggle id={p.id} ativo={p.ativo} />
-                  <ExcluirProfitButton id={p.id} nome={p.nome} />
-                </div>
+                {podeGerenciar && (
+                  <div className="flex justify-end gap-1">
+                    <ProfitFormDialog profit={p} />
+                    <ProfitAtivoToggle id={p.id} ativo={p.ativo} />
+                    <ExcluirProfitButton id={p.id} nome={p.nome} />
+                  </div>
+                )}
               </TableCell>
             </TableRow>
           ))}

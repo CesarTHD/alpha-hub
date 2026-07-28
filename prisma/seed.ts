@@ -3,13 +3,11 @@ import { db } from "@/lib/db";
 
 async function main() {
   const admin = await db.usuario.upsert({
-    where: { email: "admin@alpha.com.br" },
+    where: { email: "cesar.tallys@assessorialpha.com" },
     update: {},
     create: {
-      nome: "Administrador",
-      email: "admin@alpha.com.br",
-      // placeholder — auth ainda não implementado; substituir por hash real (bcrypt/argon2) quando o login for adicionado
-      senhaHash: "CHANGE_ME",
+      nome: "Cesar Tallys",
+      email: "cesar.tallys@assessorialpha.com",
       role: "ADMIN",
     },
   });

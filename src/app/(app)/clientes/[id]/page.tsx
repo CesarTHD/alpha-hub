@@ -25,6 +25,14 @@ import { AlterarPlanoDialog } from "@/components/clientes/alterar-plano-dialog";
 import { AlterarValorDialog } from "@/components/clientes/alterar-valor-dialog";
 import { ObservacaoDialog } from "@/components/clientes/observacao-dialog";
 import { EventosTimeline } from "@/components/eventos/eventos-timeline";
+import { getCurrentUser } from "@/lib/current-user";
+import {
+  canEditCliente,
+  canManageContratos,
+  canRegisterEvento,
+  canTransferirFranquia,
+  clienteFranquiaScopeWhere,
+} from "@/lib/rbac";
 
 const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   ATIVO: "default",
@@ -37,9 +45,10 @@ export const dynamic = "force-dynamic";
 
 export default async function ClienteDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const usuario = await getCurrentUser();
 
   const cliente = await db.cliente.findFirst({
-    where: { id, deletedAt: null },
+    where: { id, deletedAt: null, ...clienteFranquiaScopeWhere(usuario) },
     include: {
       carteiraHistorico: {
         orderBy: { dataInicio: "desc" },
@@ -72,7 +81,11 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
         <PageHeader
           title={cliente.nome}
           description={cliente.documento}
-          actions={<ObservacaoDialog clienteId={cliente.id} contratoId={contratoAtual?.id} />}
+          actions={
+            canRegisterEvento(usuario) ? (
+              <ObservacaoDialog clienteId={cliente.id} contratoId={contratoAtual?.id} />
+            ) : undefined
+          }
         />
       </div>
 
@@ -80,19 +93,21 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Dados cadastrais</CardTitle>
-            <EditarClienteDialog
-              cliente={{
-                id: cliente.id,
-                nome: cliente.nome,
-                documento: cliente.documento,
-                email: cliente.email,
-                telefone: cliente.telefone,
-                cidade: cliente.cidade,
-                estado: cliente.estado,
-                segmento: cliente.segmento,
-                observacoes: cliente.observacoes,
-              }}
-            />
+            {canEditCliente(usuario) && (
+              <EditarClienteDialog
+                cliente={{
+                  id: cliente.id,
+                  nome: cliente.nome,
+                  documento: cliente.documento,
+                  email: cliente.email,
+                  telefone: cliente.telefone,
+                  cidade: cliente.cidade,
+                  estado: cliente.estado,
+                  segmento: cliente.segmento,
+                  observacoes: cliente.observacoes,
+                }}
+              />
+            )}
           </CardHeader>
           <CardContent className="space-y-1 text-sm">
             <p>
@@ -136,11 +151,13 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
             ) : (
               <p className="text-muted-foreground">Cliente sem franquia ativa (churn).</p>
             )}
-            <TransferirFranquiaDialog
-              clienteId={cliente.id}
-              franquiaAtualId={carteiraAtual?.franquiaId}
-              franquias={franquias}
-            />
+            {canTransferirFranquia(usuario) && (
+              <TransferirFranquiaDialog
+                clienteId={cliente.id}
+                franquiaAtualId={carteiraAtual?.franquiaId}
+                franquias={franquias}
+              />
+            )}
           </CardContent>
         </Card>
 
@@ -162,36 +179,38 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
                 </p>
                 <p className="text-muted-foreground">Início em {formatDate(contratoAtual.inicioContrato)}</p>
 
-                <div className="flex flex-wrap gap-2 pt-2">
-                  <RenovacaoDialog
-                    clienteId={cliente.id}
-                    contrato={{
-                      id: contratoAtual.id,
-                      plano: contratoAtual.plano,
-                      tipoContrato: contratoAtual.tipoContrato,
-                      valorContrato: contratoAtual.valorContrato.toString(),
-                      valorMensal: contratoAtual.valorMensal.toString(),
-                      renovacaoAutomatica: contratoAtual.renovacaoAutomatica,
-                    }}
-                  />
-                  {contratoAtual.status === "ATIVO" && (
-                    <PausaButton clienteId={cliente.id} contratoId={contratoAtual.id} />
-                  )}
-                  {contratoAtual.status === "PAUSADO" && (
-                    <RetomadaButton clienteId={cliente.id} contratoId={contratoAtual.id} />
-                  )}
-                  <AlterarPlanoDialog
-                    clienteId={cliente.id}
-                    contratoId={contratoAtual.id}
-                    planoAtual={contratoAtual.plano}
-                  />
-                  <AlterarValorDialog
-                    clienteId={cliente.id}
-                    contratoId={contratoAtual.id}
-                    valorAtual={contratoAtual.valorMensal.toString()}
-                  />
-                  <ChurnDialog clienteId={cliente.id} contratoId={contratoAtual.id} />
-                </div>
+                {canManageContratos(usuario) && (
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    <RenovacaoDialog
+                      clienteId={cliente.id}
+                      contrato={{
+                        id: contratoAtual.id,
+                        plano: contratoAtual.plano,
+                        tipoContrato: contratoAtual.tipoContrato,
+                        valorContrato: contratoAtual.valorContrato.toString(),
+                        valorMensal: contratoAtual.valorMensal.toString(),
+                        renovacaoAutomatica: contratoAtual.renovacaoAutomatica,
+                      }}
+                    />
+                    {contratoAtual.status === "ATIVO" && (
+                      <PausaButton clienteId={cliente.id} contratoId={contratoAtual.id} />
+                    )}
+                    {contratoAtual.status === "PAUSADO" && (
+                      <RetomadaButton clienteId={cliente.id} contratoId={contratoAtual.id} />
+                    )}
+                    <AlterarPlanoDialog
+                      clienteId={cliente.id}
+                      contratoId={contratoAtual.id}
+                      planoAtual={contratoAtual.plano}
+                    />
+                    <AlterarValorDialog
+                      clienteId={cliente.id}
+                      contratoId={contratoAtual.id}
+                      valorAtual={contratoAtual.valorMensal.toString()}
+                    />
+                    <ChurnDialog clienteId={cliente.id} contratoId={contratoAtual.id} />
+                  </div>
+                )}
               </>
             ) : (
               <p className="text-muted-foreground">Sem contrato ativo.</p>

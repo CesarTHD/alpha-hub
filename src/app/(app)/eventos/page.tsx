@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 import { tipoEventoLabel, tipoEventoBadgeVariant } from "@/lib/evento-labels";
 import type { Prisma } from "@/generated/prisma/client";
+import { getCurrentUser } from "@/lib/current-user";
+import { eventoFranquiaScopeWhere } from "@/lib/rbac";
 
 const TIPOS_EVENTO = Object.keys(tipoEventoLabel);
 
@@ -27,10 +29,12 @@ export default async function EventosPage({
   searchParams: Promise<{ tipo?: string; cliente?: string }>;
 }) {
   const { tipo, cliente } = await searchParams;
+  const usuario = await getCurrentUser();
 
-  const where: Prisma.EventoWhereInput = {};
-  if (tipo) where.tipoEvento = tipo as Prisma.EventoWhereInput["tipoEvento"];
-  if (cliente) where.cliente = { nome: { contains: cliente, mode: "insensitive" } };
+  const filtros: Prisma.EventoWhereInput[] = [eventoFranquiaScopeWhere(usuario)];
+  if (tipo) filtros.push({ tipoEvento: tipo as Prisma.EventoWhereInput["tipoEvento"] });
+  if (cliente) filtros.push({ cliente: { nome: { contains: cliente, mode: "insensitive" } } });
+  const where: Prisma.EventoWhereInput = { AND: filtros };
 
   const eventos = await db.evento.findMany({
     where,

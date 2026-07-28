@@ -16,6 +16,8 @@ import {
 import { formatCurrency } from "@/lib/format";
 import { Plus } from "lucide-react";
 import type { Prisma, StatusContrato } from "@/generated/prisma/client";
+import { getCurrentUser } from "@/lib/current-user";
+import { canCreateCliente, clienteFranquiaScopeWhere } from "@/lib/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -39,8 +41,9 @@ export default async function ClientesPage({
   searchParams: Promise<{ nome?: string; status?: string }>;
 }) {
   const { nome, status } = await searchParams;
+  const usuario = await getCurrentUser();
 
-  const where: Prisma.ClienteWhereInput = { deletedAt: null };
+  const where: Prisma.ClienteWhereInput = { deletedAt: null, ...clienteFranquiaScopeWhere(usuario) };
   if (nome) where.nome = { contains: nome, mode: "insensitive" };
 
   const clientesEncontrados = await db.cliente.findMany({
@@ -63,11 +66,13 @@ export default async function ClientesPage({
         title="Clientes"
         description="Toda a carteira de clientes da Alpha."
         actions={
-          <Button asChild>
-            <Link href="/clientes/novo">
-              <Plus className="mr-1 h-4 w-4" /> Novo cliente
-            </Link>
-          </Button>
+          canCreateCliente(usuario) ? (
+            <Button asChild>
+              <Link href="/clientes/novo">
+                <Plus className="mr-1 h-4 w-4" /> Novo cliente
+              </Link>
+            </Button>
+          ) : undefined
         }
       />
 

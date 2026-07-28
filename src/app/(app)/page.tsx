@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getDashboardData } from "@/lib/dashboard";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
@@ -5,11 +6,17 @@ import { RankingList } from "@/components/dashboard/ranking-list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/format";
 import { Users, DollarSign, TrendingDown, Building2 } from "lucide-react";
+import { getCurrentUser } from "@/lib/current-user";
+import { canViewDashboard, hasFranquiaScope } from "@/lib/rbac";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const data = await getDashboardData();
+  const usuario = await getCurrentUser();
+  if (canViewDashboard(usuario) === "none") redirect("/clientes");
+
+  const scope = hasFranquiaScope(usuario) ? { franquiaId: usuario.franquiaId } : null;
+  const data = await getDashboardData(scope);
 
   return (
     <div className="space-y-8">

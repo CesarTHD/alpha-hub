@@ -4,13 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { navLinks } from "./nav-links";
+import type { Role } from "@/generated/prisma/client";
 
-export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+export function SidebarNav({ role, onNavigate }: { role: Role; onNavigate?: () => void }) {
   const pathname = usePathname();
+  const links = navLinks.filter((link) => !link.roles || link.roles.includes(role));
 
   return (
     <nav className="flex flex-col gap-1 p-3">
-      {navLinks.map((link) => {
+      {links.map((link) => {
         const active = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
         const Icon = link.icon;
         return (

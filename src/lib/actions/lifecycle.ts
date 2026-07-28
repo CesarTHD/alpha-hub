@@ -3,9 +3,10 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/current-user";
+import { canManageContratos, canRegisterEvento, canTransferirFranquia } from "@/lib/rbac";
 import type { ActionState } from "./action-state";
 import { optionalText } from "./zod-helpers";
+import { requireClienteAccess } from "./guards";
 
 function revalidateCliente(clienteId: string) {
   revalidatePath(`/clientes/${clienteId}`);
@@ -47,7 +48,8 @@ export async function registrarRenovacao(_prev: ActionState, formData: FormData)
     return { ok: false, fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
-  const usuario = await getCurrentUser();
+  const { usuario, allowed } = await requireClienteAccess(parsed.data.clienteId);
+  if (!allowed || !canManageContratos(usuario)) return { ok: false, message: "Acesso negado." };
   const inicio = new Date(parsed.data.inicioContrato);
 
   await db.$transaction(async (tx) => {
@@ -103,7 +105,8 @@ export async function registrarPausa(_prev: ActionState, formData: FormData): Pr
   });
   if (!parsed.success) return { ok: false, fieldErrors: parsed.error.flatten().fieldErrors };
 
-  const usuario = await getCurrentUser();
+  const { usuario, allowed } = await requireClienteAccess(parsed.data.clienteId);
+  if (!allowed || !canManageContratos(usuario)) return { ok: false, message: "Acesso negado." };
   const agora = new Date();
 
   await db.$transaction(async (tx) => {
@@ -132,7 +135,8 @@ export async function registrarRetomada(_prev: ActionState, formData: FormData):
   });
   if (!parsed.success) return { ok: false, fieldErrors: parsed.error.flatten().fieldErrors };
 
-  const usuario = await getCurrentUser();
+  const { usuario, allowed } = await requireClienteAccess(parsed.data.clienteId);
+  if (!allowed || !canManageContratos(usuario)) return { ok: false, message: "Acesso negado." };
   const agora = new Date();
 
   await db.$transaction(async (tx) => {
@@ -173,7 +177,8 @@ export async function registrarChurn(_prev: ActionState, formData: FormData): Pr
   });
   if (!parsed.success) return { ok: false, fieldErrors: parsed.error.flatten().fieldErrors };
 
-  const usuario = await getCurrentUser();
+  const { usuario, allowed } = await requireClienteAccess(parsed.data.clienteId);
+  if (!allowed || !canManageContratos(usuario)) return { ok: false, message: "Acesso negado." };
   const dataSaida = new Date(parsed.data.dataSaida);
 
   await db.$transaction(async (tx) => {
@@ -226,7 +231,8 @@ export async function transferirFranquia(_prev: ActionState, formData: FormData)
   });
   if (!parsed.success) return { ok: false, fieldErrors: parsed.error.flatten().fieldErrors };
 
-  const usuario = await getCurrentUser();
+  const { usuario, allowed } = await requireClienteAccess(parsed.data.clienteId);
+  if (!allowed || !canTransferirFranquia(usuario)) return { ok: false, message: "Acesso negado." };
   const agora = new Date();
 
   const carteiraAtiva = await db.clienteCarteira.findFirst({
@@ -286,7 +292,8 @@ export async function alterarPlano(_prev: ActionState, formData: FormData): Prom
   });
   if (!parsed.success) return { ok: false, fieldErrors: parsed.error.flatten().fieldErrors };
 
-  const usuario = await getCurrentUser();
+  const { usuario, allowed } = await requireClienteAccess(parsed.data.clienteId);
+  if (!allowed || !canManageContratos(usuario)) return { ok: false, message: "Acesso negado." };
   const contratoAnterior = await db.contrato.findUniqueOrThrow({ where: { id: parsed.data.contratoId } });
 
   await db.$transaction(async (tx) => {
@@ -324,7 +331,8 @@ export async function alterarValor(_prev: ActionState, formData: FormData): Prom
   });
   if (!parsed.success) return { ok: false, fieldErrors: parsed.error.flatten().fieldErrors };
 
-  const usuario = await getCurrentUser();
+  const { usuario, allowed } = await requireClienteAccess(parsed.data.clienteId);
+  if (!allowed || !canManageContratos(usuario)) return { ok: false, message: "Acesso negado." };
   const contratoAnterior = await db.contrato.findUniqueOrThrow({ where: { id: parsed.data.contratoId } });
 
   await db.$transaction(async (tx) => {
@@ -367,7 +375,8 @@ export async function registrarObservacao(_prev: ActionState, formData: FormData
   });
   if (!parsed.success) return { ok: false, fieldErrors: parsed.error.flatten().fieldErrors };
 
-  const usuario = await getCurrentUser();
+  const { usuario, allowed } = await requireClienteAccess(parsed.data.clienteId);
+  if (!allowed || !canRegisterEvento(usuario)) return { ok: false, message: "Acesso negado." };
 
   await db.evento.create({
     data: {

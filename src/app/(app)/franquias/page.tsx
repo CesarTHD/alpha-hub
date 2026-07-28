@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/layout/page-header";
 import {
@@ -13,10 +14,15 @@ import { FranquiaFormDialog } from "@/components/franquias/franquia-form-dialog"
 import { TrocaProfitDialog } from "@/components/franquias/troca-profit-dialog";
 import { FranquiaAtivaToggle } from "@/components/franquias/franquia-ativa-toggle";
 import { ExcluirFranquiaButton } from "@/components/franquias/excluir-franquia-button";
+import { getCurrentUser } from "@/lib/current-user";
+import { canManageFranquias, hasFranquiaScope } from "@/lib/rbac";
 
 export const dynamic = "force-dynamic";
 
 export default async function FranquiasPage() {
+  const usuario = await getCurrentUser();
+  if (hasFranquiaScope(usuario)) redirect("/clientes");
+  const nivel = canManageFranquias(usuario);
   // Sequential on purpose, and no filtered `_count` on a nested relation:
   // both concurrent queries (Promise.all) and filtered relation counts have
   // been observed to trip a query-engine bug under Prisma 7.9 +
@@ -42,7 +48,7 @@ export default async function FranquiasPage() {
       <PageHeader
         title="Franquias"
         description="Unidades da Alpha e o Profit responsável por cada uma."
-        actions={<FranquiaFormDialog />}
+        actions={nivel !== "none" ? <FranquiaFormDialog /> : undefined}
       />
 
       <Table>
@@ -75,17 +81,19 @@ export default async function FranquiasPage() {
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <div className="flex justify-end gap-1">
-                    <TrocaProfitDialog
-                      franquiaId={f.id}
-                      franquiaNome={f.nome}
-                      profitAtualId={profitAtual?.id}
-                      profits={profits}
-                    />
-                    <FranquiaFormDialog franquia={f} />
-                    <FranquiaAtivaToggle id={f.id} ativo={f.ativo} />
-                    <ExcluirFranquiaButton id={f.id} nome={f.nome} />
-                  </div>
+                  {nivel !== "none" && (
+                    <div className="flex justify-end gap-1">
+                      <TrocaProfitDialog
+                        franquiaId={f.id}
+                        franquiaNome={f.nome}
+                        profitAtualId={profitAtual?.id}
+                        profits={profits}
+                      />
+                      <FranquiaFormDialog franquia={f} />
+                      <FranquiaAtivaToggle id={f.id} ativo={f.ativo} />
+                      {nivel === "full" && <ExcluirFranquiaButton id={f.id} nome={f.nome} />}
+                    </div>
+                  )}
                 </TableCell>
               </TableRow>
             );

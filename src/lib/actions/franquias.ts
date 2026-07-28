@@ -3,6 +3,8 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { getCurrentUser } from "@/lib/current-user";
+import { canManageFranquias } from "@/lib/rbac";
 import type { ActionState } from "./action-state";
 import { optionalText } from "./zod-helpers";
 
@@ -28,6 +30,11 @@ async function checkCnpjDuplicado(cnpj: string | undefined, excludeId?: string) 
 }
 
 export async function createFranquia(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const usuario = await getCurrentUser();
+  if (canManageFranquias(usuario) === "none") {
+    return { ok: false, message: "Acesso negado." };
+  }
+
   const parsed = franquiaSchema.safeParse({
     nome: formData.get("nome"),
     cidade: formData.get("cidade"),
@@ -61,6 +68,11 @@ export async function updateFranquia(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const usuario = await getCurrentUser();
+  if (canManageFranquias(usuario) === "none") {
+    return { ok: false, message: "Acesso negado." };
+  }
+
   const parsed = franquiaSchema.safeParse({
     nome: formData.get("nome"),
     cidade: formData.get("cidade"),
@@ -91,11 +103,19 @@ export async function updateFranquia(
 }
 
 export async function setFranquiaAtiva(id: string, ativo: boolean) {
+  const usuario = await getCurrentUser();
+  if (canManageFranquias(usuario) === "none") return;
+
   await db.franquia.update({ where: { id }, data: { ativo } });
   revalidatePath("/franquias");
 }
 
 export async function excluirFranquia(id: string) {
+  const usuario = await getCurrentUser();
+  if (canManageFranquias(usuario) !== "full") {
+    return { ok: false, message: "Acesso negado." };
+  }
+
   const emUso = await db.clienteCarteira.count({ where: { franquiaId: id, ativo: true } });
   if (emUso > 0) {
     return { ok: false, message: "Não é possível excluir: há clientes ativos nesta franquia." };

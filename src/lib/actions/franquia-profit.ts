@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/current-user";
+import { canManageFranquias } from "@/lib/rbac";
 import type { ActionState } from "./action-state";
 
 const schema = z.object({
@@ -24,6 +25,11 @@ export async function trocarProfitResponsavel(
     return { ok: false, fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
+  const usuario = await getCurrentUser();
+  if (canManageFranquias(usuario) === "none") {
+    return { ok: false, message: "Acesso negado." };
+  }
+
   const { franquiaId, profitId } = parsed.data;
 
   const vinculoAtual = await db.franquiaProfitHistorico.findFirst({
@@ -38,7 +44,6 @@ export async function trocarProfitResponsavel(
   // Sequential on purpose — see comment in src/app/franquias/page.tsx.
   const franquia = await db.franquia.findUniqueOrThrow({ where: { id: franquiaId } });
   const novoProfit = await db.profit.findUniqueOrThrow({ where: { id: profitId } });
-  const usuario = await getCurrentUser();
 
   const agora = new Date();
 

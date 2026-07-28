@@ -3,6 +3,8 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { getCurrentUser } from "@/lib/current-user";
+import { canManageProfits } from "@/lib/rbac";
 import type { ActionState } from "./action-state";
 import { optionalText } from "./zod-helpers";
 
@@ -13,6 +15,11 @@ const profitSchema = z.object({
 });
 
 export async function createProfit(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const usuario = await getCurrentUser();
+  if (!canManageProfits(usuario)) {
+    return { ok: false, message: "Acesso negado." };
+  }
+
   const parsed = profitSchema.safeParse({
     nome: formData.get("nome"),
     email: formData.get("email"),
@@ -40,6 +47,11 @@ export async function updateProfit(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const usuario = await getCurrentUser();
+  if (!canManageProfits(usuario)) {
+    return { ok: false, message: "Acesso negado." };
+  }
+
   const parsed = profitSchema.safeParse({
     nome: formData.get("nome"),
     email: formData.get("email"),
@@ -59,11 +71,19 @@ export async function updateProfit(
 }
 
 export async function setProfitAtivo(id: string, ativo: boolean) {
+  const usuario = await getCurrentUser();
+  if (!canManageProfits(usuario)) return;
+
   await db.profit.update({ where: { id }, data: { ativo } });
   revalidatePath("/profits");
 }
 
 export async function excluirProfit(id: string) {
+  const usuario = await getCurrentUser();
+  if (!canManageProfits(usuario)) {
+    return { ok: false, message: "Acesso negado." };
+  }
+
   const emUso = await db.franquiaProfitHistorico.count({ where: { profitId: id, ativo: true } });
   if (emUso > 0) {
     return { ok: false, message: "Não é possível excluir: este Profit é responsável por franquias ativas." };
