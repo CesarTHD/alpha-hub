@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { navLinks } from "./nav-links";
+import { logoutAction } from "@/lib/actions/auth";
 import type { Role } from "@/generated/prisma/client";
 
 export function SidebarNav({ role, onNavigate }: { role: Role; onNavigate?: () => void }) {
@@ -33,6 +35,18 @@ export function SidebarNav({ role, onNavigate }: { role: Role; onNavigate?: () =
           </Link>
         );
       })}
+
+      <div className="my-2 border-t border-border" />
+
+      <form action={logoutAction}>
+        <button
+          type="submit"
+          className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <LogOut className="h-4 w-4" />
+          Sair
+        </button>
+      </form>
     </nav>
   );
 }
