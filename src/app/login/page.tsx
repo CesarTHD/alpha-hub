@@ -31,7 +31,7 @@ export default async function LoginPage({
         >
           <button
             type="submit"
-            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 cursor-pointer"
           >
             Entrar com Google
           </button>

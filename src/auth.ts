@@ -5,6 +5,10 @@ import { db } from "@/lib/db";
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [Google],
   session: { strategy: "jwt" },
+  // Railway (como a maioria dos hosts fora da Vercel) fica atrás de um proxy reverso —
+  // sem isso o Auth.js não confia no Host encaminhado e monta URLs de redirect quebradas
+  // a partir do endereço interno do container.
+  trustHost: true,
   pages: {
     signIn: "/login",
     error: "/login",
