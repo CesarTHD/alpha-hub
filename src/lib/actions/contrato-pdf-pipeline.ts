@@ -16,6 +16,7 @@ export async function extrairContratoDePdf(pdfBuffer: Buffer): Promise<ImportCon
 
   try {
     const data = await extractContratoFromText(text);
+    if (data.documento) data.documento = data.documento.replace(/\D/g, "");
     return { ok: true, message: "Contrato importado. Revise os dados antes de salvar.", data };
   } catch (err) {
     console.error("[IA] Erro ao interpretar contrato:", err);
