@@ -1,5 +1,23 @@
+import { addMonths } from "date-fns";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/current-user";
+import type { TipoContrato } from "@/generated/prisma/enums";
+
+const DURACAO_MESES: Partial<Record<TipoContrato, number>> = {
+  TRIMESTRAL: 3,
+  QUADRIMESTRAL: 4,
+  SEMESTRAL: 6,
+  ANUAL: 12,
+};
+
+/**
+ * Data de fim do contrato a partir do início + duração do tipo contratado.
+ * MENSAL não tem duração fixa (renovação mês a mês), então fica sem fim.
+ */
+export function calcularFimContrato(inicioContrato: Date, tipoContrato: TipoContrato): Date | null {
+  const meses = DURACAO_MESES[tipoContrato];
+  return meses ? addMonths(inicioContrato, meses) : null;
+}
 
 /**
  * Contratos ATIVO cujo prazo (fimContrato) já passou e não foram renovados

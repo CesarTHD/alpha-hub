@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/current-user";
 import { canCreateCliente, canEditCliente, hasFranquiaScope } from "@/lib/rbac";
+import { calcularFimContrato } from "@/lib/contrato-lifecycle";
 import type { ActionState } from "./action-state";
 import { optionalText } from "./zod-helpers";
 import { requireClienteAccess } from "./guards";
@@ -96,6 +97,7 @@ export async function createClienteComContrato(
         valorContrato: parsed.data.valorContrato,
         valorMensal: parsed.data.valorMensal,
         inicioContrato: inicio,
+        fimContrato: calcularFimContrato(inicio, parsed.data.tipoContrato),
         renovacaoAutomatica: parsed.data.renovacaoAutomatica ?? false,
         status: "ATIVO",
       },

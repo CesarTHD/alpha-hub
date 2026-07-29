@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { canManageContratos, canRegisterEvento, canTransferirFranquia } from "@/lib/rbac";
+import { calcularFimContrato } from "@/lib/contrato-lifecycle";
 import type { ActionState } from "./action-state";
 import { optionalText } from "./zod-helpers";
 import { requireClienteAccess } from "./guards";
@@ -66,6 +67,7 @@ export async function registrarRenovacao(_prev: ActionState, formData: FormData)
         valorContrato: parsed.data.valorContrato,
         valorMensal: parsed.data.valorMensal,
         inicioContrato: inicio,
+        fimContrato: calcularFimContrato(inicio, parsed.data.tipoContrato),
         renovacaoAutomatica: parsed.data.renovacaoAutomatica ?? false,
         status: "ATIVO",
       },
