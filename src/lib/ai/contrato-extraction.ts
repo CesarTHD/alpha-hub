@@ -41,9 +41,11 @@ export async function extractContratoFromText(text: string): Promise<ContratoExt
   const message = await client.messages.parse({
     model: process.env.ANTHROPIC_MODEL || "claude-opus-5",
     max_tokens: 2048,
+    thinking: { type: "disabled" },
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: text.slice(0, MAX_CONTRACT_CHARS) }],
     output_config: {
+      effort: "low",
       format: zodOutputFormat(contratoExtraidoSchema),
     },
   });
