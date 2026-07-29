@@ -45,11 +45,17 @@ function toArray(value: string | string[] | undefined): string[] {
 export default async function ClientesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ nome?: string; status?: string | string[]; franquia?: string | string[] }>;
+  searchParams: Promise<{
+    nome?: string;
+    status?: string | string[];
+    franquia?: string | string[];
+    profit?: string | string[];
+  }>;
 }) {
-  const { nome, status: statusParam, franquia: franquiaParam } = await searchParams;
+  const { nome, status: statusParam, franquia: franquiaParam, profit: profitParam } = await searchParams;
   const status = toArray(statusParam);
   const franquia = toArray(franquiaParam);
+  const profit = toArray(profitParam);
   const usuario = await getCurrentUser();
   await encerrarContratosVencidos();
 
@@ -60,10 +66,24 @@ export default async function ClientesPage({
   });
   const FRANQUIA_OPTIONS = franquias.map((f) => ({ value: f.id, label: f.nome }));
 
+  const profits = await db.profit.findMany({
+    where: { deletedAt: null },
+    orderBy: { nome: "asc" },
+    select: { id: true, nome: true },
+  });
+  const PROFIT_OPTIONS = profits.map((p) => ({ value: p.id, label: p.nome }));
+
   const filtros: Prisma.ClienteWhereInput[] = [{ deletedAt: null }, clienteFranquiaScopeWhere(usuario)];
   if (nome) filtros.push({ nome: { contains: nome, mode: "insensitive" } });
   if (franquia.length > 0) {
     filtros.push({ carteiraHistorico: { some: { ativo: true, franquiaId: { in: franquia } } } });
+  }
+  if (profit.length > 0) {
+    filtros.push({
+      carteiraHistorico: {
+        some: { ativo: true, franquia: { historicoProfit: { some: { ativo: true, profitId: { in: profit } } } } },
+      },
+    });
   }
   const where: Prisma.ClienteWhereInput = { AND: filtros };
 
@@ -128,10 +148,19 @@ export default async function ClientesPage({
                 placeholder="Todas"
               />
             </div>
+            <div className="space-y-1 space-x-2">
+              <label className="text-xs text-muted-foreground">Profit</label>
+              <MultiSelectFilter
+                name="profit"
+                options={PROFIT_OPTIONS}
+                defaultValues={profit}
+                placeholder="Todos"
+              />
+            </div>
             <Button type="submit" variant="secondary">
               Filtrar
             </Button>
-            {(nome || status.length > 0 || franquia.length > 0) && (
+            {(nome || status.length > 0 || franquia.length > 0 || profit.length > 0) && (
               <Button asChild variant="ghost">
                 <Link href="/clientes">Limpar</Link>
               </Button>
@@ -196,7 +225,7 @@ export default async function ClientesPage({
           {clientes.length === 0 && (
             <TableRow>
               <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                {nome || status.length > 0 || franquia.length > 0
+                {nome || status.length > 0 || franquia.length > 0 || profit.length > 0
                   ? "Nenhum cliente encontrado para esse filtro."
                   : "Nenhum cliente cadastrado ainda."}
               </TableCell>
