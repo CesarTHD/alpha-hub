@@ -50,7 +50,13 @@ export default async function ClientesPage({
     where,
     orderBy: { nome: "asc" },
     include: {
-      carteiraHistorico: { orderBy: { dataInicio: "desc" }, take: 1, include: { franquia: true } },
+      carteiraHistorico: {
+        orderBy: { dataInicio: "desc" },
+        take: 1,
+        include: {
+          franquia: { include: { historicoProfit: { where: { ativo: true }, include: { profit: true } } } },
+        },
+      },
       contratos: { orderBy: { inicioContrato: "desc" }, take: 1 },
     },
   });
@@ -119,6 +125,7 @@ export default async function ClientesPage({
           <TableRow>
             <TableHead>Nome</TableHead>
             <TableHead>Franquia</TableHead>
+            <TableHead>Profit</TableHead>
             <TableHead>Plano</TableHead>
             <TableHead>Valor mensal</TableHead>
             <TableHead>Status</TableHead>
@@ -145,6 +152,11 @@ export default async function ClientesPage({
                     <span className="text-muted-foreground">—</span>
                   )}
                 </TableCell>
+                <TableCell>
+                  {carteira?.franquia.historicoProfit[0]?.profit.nome ?? (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </TableCell>
                 <TableCell>{contrato?.plano ?? "—"}</TableCell>
                 <TableCell>{contrato ? formatCurrency(contrato.valorMensal.toString()) : "—"}</TableCell>
                 <TableCell>
@@ -159,7 +171,7 @@ export default async function ClientesPage({
           })}
           {clientes.length === 0 && (
             <TableRow>
-              <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+              <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                 {nome || status ? "Nenhum cliente encontrado para esse filtro." : "Nenhum cliente cadastrado ainda."}
               </TableCell>
             </TableRow>
