@@ -4,14 +4,8 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/current-user";
 import { canCreateCliente } from "@/lib/rbac";
 import { extractD4SignUuid, downloadD4SignDocumentPdf, D4SignError } from "@/lib/d4sign/client";
-import { extractPdfText } from "@/lib/pdf/extract-text";
-import { extractContratoFromText, type ContratoExtraido } from "@/lib/ai/contrato-extraction";
-
-export type ImportContratoState = {
-  ok: boolean;
-  message?: string;
-  data?: ContratoExtraido;
-} | null;
+import { extrairContratoDePdf } from "./contrato-pdf-pipeline";
+import type { ImportContratoState } from "./import-contrato-state";
 
 const inputSchema = z.object({
   documentoD4Sign: z.string().trim().min(1, "Informe o link ou UUID do documento"),
@@ -48,25 +42,5 @@ export async function importarContratoD4Sign(
     };
   }
 
-  let text: string;
-  try {
-    text = await extractPdfText(pdfBuffer);
-  } catch {
-    return { ok: false, message: "Não foi possível ler o conteúdo deste PDF." };
-  }
-  if (!text || text.trim().length < 20) {
-    return { ok: false, message: "Não foi possível extrair texto deste PDF." };
-  }
-
-  let data: ContratoExtraido;
-  try {
-    data = await extractContratoFromText(text);
-  } catch {
-    return {
-      ok: false,
-      message: "Erro ao interpretar o contrato com IA. Preencha os campos manualmente.",
-    };
-  }
-
-  return { ok: true, message: "Contrato importado. Revise os dados antes de salvar.", data };
+  return extrairContratoDePdf(pdfBuffer);
 }

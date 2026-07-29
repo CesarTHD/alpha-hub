@@ -9,6 +9,17 @@ export function extractD4SignUuid(input: string): string | null {
 }
 
 type D4SignDownloadLinkResponse = { url?: string; name?: string; message?: string };
+type D4SignApiErrorBody = { status?: boolean; error?: string; message?: string };
+
+/** Lê a mensagem de erro do D4Sign do corpo da resposta, quando houver (`{status:false, error:"..."}`). */
+async function readD4SignErrorDetail(response: Response): Promise<string | null> {
+  try {
+    const body: D4SignApiErrorBody = await response.json();
+    return body.error || body.message || null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Baixa o PDF de um documento do D4Sign. tokenAPI + cryptKey autenticam e autorizam o acesso ao
@@ -42,10 +53,21 @@ export async function downloadD4SignDocumentPdf(uuid: string): Promise<Buffer> {
     throw new D4SignError("Documento não encontrado no D4Sign. Verifique o link/UUID.");
   }
   if (linkResponse.status === 401 || linkResponse.status === 403) {
-    throw new D4SignError("Credenciais do D4Sign inválidas ou sem acesso a este documento.");
+    const detail = await readD4SignErrorDetail(linkResponse);
+    if (detail && /tempo limite|limite de requisi|rate.?limit/i.test(detail)) {
+      throw new D4SignError(
+        "Limite de requisições ao D4Sign atingido para este método. Aguarde alguns instantes e tente novamente.",
+      );
+    }
+    throw new D4SignError(
+      detail
+        ? `Erro de autenticação com o D4Sign: ${detail}`
+        : "Credenciais do D4Sign inválidas ou sem acesso a este documento.",
+    );
   }
   if (!linkResponse.ok) {
-    throw new D4SignError("Erro ao baixar o contrato do D4Sign.");
+    const detail = await readD4SignErrorDetail(linkResponse);
+    throw new D4SignError(detail ? `Erro ao baixar o contrato do D4Sign: ${detail}` : "Erro ao baixar o contrato do D4Sign.");
   }
 
   let linkData: D4SignDownloadLinkResponse;

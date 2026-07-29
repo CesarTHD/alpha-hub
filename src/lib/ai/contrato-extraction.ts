@@ -22,6 +22,19 @@ export const contratoExtraidoSchema = z.object({
 
 export type ContratoExtraido = z.infer<typeof contratoExtraidoSchema>;
 
+/** Modelos onde thinking é adaptativo por padrão e o parâmetro `effort` existe — só nesses vale a pena desligar thinking/reduzir effort para ganhar velocidade. Em modelos mais simples (ex.: Haiku 4.5) esses parâmetros não existem e a API retorna 400. */
+const MODELS_WITH_EFFORT_CONTROL = new Set([
+  "claude-opus-5",
+  "claude-sonnet-5",
+  "claude-fable-5",
+  "claude-mythos-5",
+  "claude-opus-4-8",
+  "claude-opus-4-7",
+  "claude-opus-4-6",
+  "claude-opus-4-5",
+  "claude-sonnet-4-6",
+]);
+
 const SYSTEM_PROMPT = `Você extrai dados estruturados de contratos da Alpha a partir do texto bruto de um PDF.
 
 Regras:
@@ -37,15 +50,17 @@ Regras:
 
 export async function extractContratoFromText(text: string): Promise<ContratoExtraido> {
   const client = new Anthropic();
+  const model = process.env.ANTHROPIC_MODEL || "claude-opus-5";
+  const hasEffortControl = MODELS_WITH_EFFORT_CONTROL.has(model);
 
   const message = await client.messages.parse({
-    model: process.env.ANTHROPIC_MODEL || "claude-opus-5",
+    model,
     max_tokens: 2048,
-    thinking: { type: "disabled" },
+    ...(hasEffortControl ? { thinking: { type: "disabled" as const } } : {}),
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: text.slice(0, MAX_CONTRACT_CHARS) }],
     output_config: {
-      effort: "low",
+      ...(hasEffortControl ? { effort: "low" as const } : {}),
       format: zodOutputFormat(contratoExtraidoSchema),
     },
   });
