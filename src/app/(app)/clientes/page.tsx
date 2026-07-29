@@ -18,6 +18,7 @@ import { Plus } from "lucide-react";
 import type { Prisma, StatusContrato } from "@/generated/prisma/client";
 import { getCurrentUser } from "@/lib/current-user";
 import { canCreateCliente, clienteFranquiaScopeWhere } from "@/lib/rbac";
+import { MultiSelectFilter } from "@/components/filters/multi-select-filter";
 
 export const dynamic = "force-dynamic";
 
@@ -35,16 +36,34 @@ const STATUS_OPTIONS: { value: StatusContrato; label: string }[] = [
   { value: "CHURN", label: "Churn" },
 ];
 
+function toArray(value: string | string[] | undefined): string[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
 export default async function ClientesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ nome?: string; status?: string }>;
+  searchParams: Promise<{ nome?: string; status?: string | string[]; franquia?: string | string[] }>;
 }) {
-  const { nome, status } = await searchParams;
+  const { nome, status: statusParam, franquia: franquiaParam } = await searchParams;
+  const status = toArray(statusParam);
+  const franquia = toArray(franquiaParam);
   const usuario = await getCurrentUser();
 
-  const where: Prisma.ClienteWhereInput = { deletedAt: null, ...clienteFranquiaScopeWhere(usuario) };
-  if (nome) where.nome = { contains: nome, mode: "insensitive" };
+  const franquias = await db.franquia.findMany({
+    where: { deletedAt: null },
+    orderBy: { nome: "asc" },
+    select: { id: true, nome: true },
+  });
+  const FRANQUIA_OPTIONS = franquias.map((f) => ({ value: f.id, label: f.nome }));
+
+  const filtros: Prisma.ClienteWhereInput[] = [{ deletedAt: null }, clienteFranquiaScopeWhere(usuario)];
+  if (nome) filtros.push({ nome: { contains: nome, mode: "insensitive" } });
+  if (franquia.length > 0) {
+    filtros.push({ carteiraHistorico: { some: { ativo: true, franquiaId: { in: franquia } } } });
+  }
+  const where: Prisma.ClienteWhereInput = { AND: filtros };
 
   const clientesEncontrados = await db.cliente.findMany({
     where,
@@ -62,8 +81,8 @@ export default async function ClientesPage({
   });
 
   // Filtra pelo status do contrato mais recente — o mesmo que a coluna "Status" exibe.
-  const clientes = status
-    ? clientesEncontrados.filter((c) => c.contratos[0]?.status === status)
+  const clientes = status.length > 0
+    ? clientesEncontrados.filter((c) => c.contratos[0] && status.includes(c.contratos[0].status))
     : clientesEncontrados;
 
   return (
@@ -91,23 +110,26 @@ export default async function ClientesPage({
             </div>
             <div className="space-y-1 space-x-2">
               <label className="text-xs text-muted-foreground">Status</label>
-              <select
+              <MultiSelectFilter
                 name="status"
-                defaultValue={status ?? ""}
-                className="h-9 w-56 rounded-md border border-input bg-transparent px-3 text-sm"
-              >
-                <option value="">Todos</option>
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
+                options={STATUS_OPTIONS}
+                defaultValues={status}
+                placeholder="Todos"
+              />
+            </div>
+            <div className="space-y-1 space-x-2">
+              <label className="text-xs text-muted-foreground">Franquia</label>
+              <MultiSelectFilter
+                name="franquia"
+                options={FRANQUIA_OPTIONS}
+                defaultValues={franquia}
+                placeholder="Todas"
+              />
             </div>
             <Button type="submit" variant="secondary">
               Filtrar
             </Button>
-            {(nome || status) && (
+            {(nome || status.length > 0 || franquia.length > 0) && (
               <Button asChild variant="ghost">
                 <Link href="/clientes">Limpar</Link>
               </Button>
@@ -172,7 +194,9 @@ export default async function ClientesPage({
           {clientes.length === 0 && (
             <TableRow>
               <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                {nome || status ? "Nenhum cliente encontrado para esse filtro." : "Nenhum cliente cadastrado ainda."}
+                {nome || status.length > 0 || franquia.length > 0
+                  ? "Nenhum cliente encontrado para esse filtro."
+                  : "Nenhum cliente cadastrado ainda."}
               </TableCell>
             </TableRow>
           )}
