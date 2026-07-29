@@ -4,6 +4,14 @@ import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { RankingList } from "@/components/dashboard/ranking-list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatCurrency } from "@/lib/format";
 import { Users, DollarSign, TrendingDown, Building2 } from "lucide-react";
 import { getCurrentUser } from "@/lib/current-user";
@@ -122,6 +130,45 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <TrendingDown className="h-4 w-4" /> Taxa de churn por franquia
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Franquia</TableHead>
+                  <TableHead>Clientes ativos</TableHead>
+                  <TableHead>Clientes churn</TableHead>
+                  <TableHead>Taxa de churn</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {[...data.operacao.rankingFranquias]
+                  .sort((a, b) => b.taxaChurn - a.taxaChurn)
+                  .map((f) => (
+                    <TableRow key={f.id}>
+                      <TableCell className="font-medium">{f.nome}</TableCell>
+                      <TableCell>{f.clientes}</TableCell>
+                      <TableCell>{f.clientesChurn}</TableCell>
+                      <TableCell>{f.taxaChurn.toFixed(1)}%</TableCell>
+                    </TableRow>
+                  ))}
+                {data.operacao.rankingFranquias.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">
+                      Sem dados ainda.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </section>
     </div>
   );

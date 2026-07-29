@@ -67,8 +67,9 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
   const franquias = await db.franquia.findMany({ where: { deletedAt: null, ativo: true }, orderBy: { nome: "asc" } });
 
   const carteiraAtual = cliente.carteiraHistorico.find((c) => c.ativo);
+  const ultimaCarteira = carteiraAtual ?? cliente.carteiraHistorico[0];
   const contratoAtual = cliente.contratos.find((c) => c.status === "ATIVO" || c.status === "PAUSADO");
-  const profitAtual = carteiraAtual?.franquia.historicoProfit[0]?.profit;
+  const profitAtual = ultimaCarteira?.franquia.historicoProfit[0]?.profit;
 
   return (
     <div className="space-y-6">
@@ -138,18 +139,24 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
             <CardTitle>Franquia atual</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            {carteiraAtual ? (
+            {ultimaCarteira ? (
               <>
                 <p className="text-base font-medium">
-                  {carteiraAtual.franquia.nome} ({carteiraAtual.franquia.cidade}/{carteiraAtual.franquia.estado})
+                  {ultimaCarteira.franquia.nome} ({ultimaCarteira.franquia.cidade}/{ultimaCarteira.franquia.estado})
+                  {!carteiraAtual && (
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">(encerrado)</span>
+                  )}
                 </p>
                 <p className="text-muted-foreground">
                   Profit responsável: {profitAtual?.nome ?? "sem responsável"}
                 </p>
-                <p className="text-muted-foreground">Desde {formatDate(carteiraAtual.dataInicio)}</p>
+                <p className="text-muted-foreground">
+                  {carteiraAtual ? "Desde" : "De"} {formatDate(ultimaCarteira.dataInicio)}
+                  {!carteiraAtual && ultimaCarteira.dataFim && <> até {formatDate(ultimaCarteira.dataFim)}</>}
+                </p>
               </>
             ) : (
-              <p className="text-muted-foreground">Cliente sem franquia ativa (churn).</p>
+              <p className="text-muted-foreground">Cliente nunca teve franquia vinculada.</p>
             )}
             {canTransferirFranquia(usuario) && (
               <TransferirFranquiaDialog

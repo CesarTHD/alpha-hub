@@ -76,6 +76,14 @@ export async function getDashboardData(scope: DashboardScope = null) {
         select: { inicioContrato: true, status: true, dataSaida: true, fimContrato: true, tipoContrato: true },
       },
       eventos: { where: { tipoEvento: "RENOVACAO" }, select: { dataEvento: true } },
+      // Última franquia (ativa ou não) — usada para atribuir corretamente o
+      // churn de um cliente à franquia onde ele estava antes de sair, já que
+      // Cliente não guarda franquiaId direto (só via este histórico).
+      carteiraHistorico: {
+        orderBy: { dataInicio: "desc" },
+        take: 1,
+        select: { franquiaId: true, ativo: true },
+      },
     },
   });
 
@@ -143,15 +151,32 @@ export async function getDashboardData(scope: DashboardScope = null) {
 
   const mrrPorClienteId = new Map(contratosAtivosMRR.map((c) => [c.clienteId, Number(c.valorMensal)]));
 
+  // Churn por franquia: atribuído pela ÚLTIMA franquia do cliente (mesmo que
+  // o vínculo já esteja inativo), não pela franquia atualmente ativa — um
+  // cliente churnado nunca tem carteira ativa, então precisa contar na
+  // franquia de onde ele saiu para dar pra medir taxa de churn por unidade.
+  const clienteIdsChurn = new Set(clientesChurnRows.map((r) => r.clienteId));
+  const churnPorFranquia = new Map<string, number>();
+  for (const c of clientes) {
+    if (!clienteIdsChurn.has(c.id)) continue;
+    const franquiaId = c.carteiraHistorico[0]?.franquiaId;
+    if (!franquiaId) continue;
+    churnPorFranquia.set(franquiaId, (churnPorFranquia.get(franquiaId) ?? 0) + 1);
+  }
+
   const rankingFranquias = franquias
     .map((f) => {
       const clientesIds = f.historicoCarteira.map((h) => h.clienteId);
       const mrr = clientesIds.reduce((sum, id) => sum + (mrrPorClienteId.get(id) ?? 0), 0);
+      const clientesChurnFranquia = churnPorFranquia.get(f.id) ?? 0;
+      const totalFranquia = clientesIds.length + clientesChurnFranquia;
       return {
         id: f.id,
         nome: f.nome,
         clientes: clientesIds.length,
         mrr,
+        clientesChurn: clientesChurnFranquia,
+        taxaChurn: totalFranquia > 0 ? (clientesChurnFranquia / totalFranquia) * 100 : 0,
         profit: f.historicoProfit[0]?.profit.nome ?? null,
         profitId: f.historicoProfit[0]?.profit.id ?? null,
       };

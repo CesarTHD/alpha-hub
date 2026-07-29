@@ -50,7 +50,7 @@ export default async function ClientesPage({
     where,
     orderBy: { nome: "asc" },
     include: {
-      carteiraHistorico: { where: { ativo: true }, include: { franquia: true } },
+      carteiraHistorico: { orderBy: { dataInicio: "desc" }, take: 1, include: { franquia: true } },
       contratos: { orderBy: { inicioContrato: "desc" }, take: 1 },
     },
   });
@@ -127,7 +127,7 @@ export default async function ClientesPage({
         <TableBody>
           {clientes.map((c) => {
             const contrato = c.contratos[0];
-            const franquia = c.carteiraHistorico[0]?.franquia;
+            const carteira = c.carteiraHistorico[0];
             return (
               <TableRow key={c.id} className="cursor-pointer">
                 <TableCell className="font-medium">
@@ -135,7 +135,16 @@ export default async function ClientesPage({
                     {c.nome}
                   </Link>
                 </TableCell>
-                <TableCell>{franquia ? `${franquia.nome}` : <span className="text-muted-foreground">—</span>}</TableCell>
+                <TableCell>
+                  {carteira ? (
+                    <span className={carteira.ativo ? undefined : "text-muted-foreground"}>
+                      {carteira.franquia.nome}
+                      {!carteira.ativo && " (encerrado)"}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </TableCell>
                 <TableCell>{contrato?.plano ?? "—"}</TableCell>
                 <TableCell>{contrato ? formatCurrency(contrato.valorMensal.toString()) : "—"}</TableCell>
                 <TableCell>
