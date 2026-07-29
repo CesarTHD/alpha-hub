@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "TipoEvento" ADD VALUE 'ENCERRAMENTO_CONTRATO';

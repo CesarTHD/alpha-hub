@@ -33,6 +33,7 @@ import {
   canTransferirFranquia,
   clienteFranquiaScopeWhere,
 } from "@/lib/rbac";
+import { encerrarContratosVencidos } from "@/lib/contrato-lifecycle";
 
 const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   ATIVO: "default",
@@ -46,6 +47,7 @@ export const dynamic = "force-dynamic";
 export default async function ClienteDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const usuario = await getCurrentUser();
+  await encerrarContratosVencidos();
 
   const cliente = await db.cliente.findFirst({
     where: { id, deletedAt: null, ...clienteFranquiaScopeWhere(usuario) },
@@ -68,7 +70,11 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
 
   const carteiraAtual = cliente.carteiraHistorico.find((c) => c.ativo);
   const ultimaCarteira = carteiraAtual ?? cliente.carteiraHistorico[0];
-  const contratoAtual = cliente.contratos.find((c) => c.status === "ATIVO" || c.status === "PAUSADO");
+  // Inclui ENCERRADO para que o cliente ainda possa renovar após o prazo do
+  // contrato vencer sem renovação (ver encerrarContratosVencidos).
+  const contratoAtual = cliente.contratos.find(
+    (c) => c.status === "ATIVO" || c.status === "PAUSADO" || c.status === "ENCERRADO",
+  );
   const profitAtual = ultimaCarteira?.franquia.historicoProfit[0]?.profit;
 
   return (
@@ -205,17 +211,21 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
                     {contratoAtual.status === "PAUSADO" && (
                       <RetomadaButton clienteId={cliente.id} contratoId={contratoAtual.id} />
                     )}
-                    <AlterarPlanoDialog
-                      clienteId={cliente.id}
-                      contratoId={contratoAtual.id}
-                      planoAtual={contratoAtual.plano}
-                    />
-                    <AlterarValorDialog
-                      clienteId={cliente.id}
-                      contratoId={contratoAtual.id}
-                      valorAtual={contratoAtual.valorMensal.toString()}
-                    />
-                    <ChurnDialog clienteId={cliente.id} contratoId={contratoAtual.id} />
+                    {contratoAtual.status !== "ENCERRADO" && (
+                      <>
+                        <AlterarPlanoDialog
+                          clienteId={cliente.id}
+                          contratoId={contratoAtual.id}
+                          planoAtual={contratoAtual.plano}
+                        />
+                        <AlterarValorDialog
+                          clienteId={cliente.id}
+                          contratoId={contratoAtual.id}
+                          valorAtual={contratoAtual.valorMensal.toString()}
+                        />
+                        <ChurnDialog clienteId={cliente.id} contratoId={contratoAtual.id} />
+                      </>
+                    )}
                   </div>
                 )}
               </>

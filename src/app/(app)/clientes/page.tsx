@@ -19,6 +19,7 @@ import type { Prisma, StatusContrato } from "@/generated/prisma/client";
 import { getCurrentUser } from "@/lib/current-user";
 import { canCreateCliente, clienteFranquiaScopeWhere } from "@/lib/rbac";
 import { MultiSelectFilter } from "@/components/filters/multi-select-filter";
+import { encerrarContratosVencidos } from "@/lib/contrato-lifecycle";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,7 @@ export default async function ClientesPage({
   const status = toArray(statusParam);
   const franquia = toArray(franquiaParam);
   const usuario = await getCurrentUser();
+  await encerrarContratosVencidos();
 
   const franquias = await db.franquia.findMany({
     where: { deletedAt: null },
