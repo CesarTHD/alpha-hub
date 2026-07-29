@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/layout/page-header";
-import { NovoClienteForm } from "@/components/clientes/novo-cliente-form";
+import { NovoClienteContainer } from "@/components/clientes/novo-cliente-container";
 import { getCurrentUser } from "@/lib/current-user";
 import { canCreateCliente, hasFranquiaScope } from "@/lib/rbac";
 
@@ -23,7 +23,7 @@ export default async function NovoClientePage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Novo cliente" description="Cadastra o cliente e já cria o primeiro contrato." />
-      <NovoClienteForm franquias={franquias} />
+      <NovoClienteContainer franquias={franquias} />
     </div>
   );
 }

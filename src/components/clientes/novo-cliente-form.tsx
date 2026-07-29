@@ -16,14 +16,21 @@ import { SubmitButton } from "@/components/submit-button";
 import { createClienteComContrato } from "@/lib/actions/clientes";
 import { initialActionState } from "@/lib/actions/action-state";
 import { TipoContrato } from "@/generated/prisma/enums";
+import type { ContratoExtraido } from "@/lib/ai/contrato-extraction";
 
 type Franquia = { id: string; nome: string; cidade: string; estado: string };
 
-export function NovoClienteForm({ franquias }: { franquias: Franquia[] }) {
+export function NovoClienteForm({
+  franquias,
+  initialData,
+}: {
+  franquias: Franquia[];
+  initialData?: ContratoExtraido | null;
+}) {
   const [state, formAction] = useActionState(createClienteComContrato, initialActionState);
-  const [valorContrato, setValorContrato] = useState("");
+  const [valorContrato, setValorContrato] = useState(initialData?.valorContrato?.toString() ?? "");
   const [valorMRR, setValorMRR] = useState(0);
-  const [tipoContrato, setTipoContrato] = useState("MENSAL");
+  const [tipoContrato, setTipoContrato] = useState<string>(initialData?.tipoContrato ?? "MENSAL");
 
   useEffect(() => {
     if (state && !state.ok && state.message) {
@@ -52,14 +59,14 @@ export function NovoClienteForm({ franquias }: { franquias: Franquia[] }) {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="nome">Nome / Razão social</Label>
-            <Input id="nome" name="nome" required />
+            <Input id="nome" name="nome" defaultValue={initialData?.nome ?? undefined} required />
             {state?.fieldErrors?.nome && (
               <p className="text-sm text-destructive">{state.fieldErrors.nome[0]}</p>
             )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="documento">CPF/CNPJ</Label>
-            <Input id="documento" name="documento" required />
+            <Input id="documento" name="documento" defaultValue={initialData?.documento ?? undefined} required />
             {state?.fieldErrors?.documento && (
               <p className="text-sm text-destructive">{state.fieldErrors.documento[0]}</p>
             )}
@@ -67,21 +74,27 @@ export function NovoClienteForm({ franquias }: { franquias: Franquia[] }) {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="email">E-mail</Label>
-              <Input id="email" name="email" type="email" />
+              <Input id="email" name="email" type="email" defaultValue={initialData?.email ?? undefined} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="telefone">Telefone</Label>
-              <Input id="telefone" name="telefone" />
+              <Input id="telefone" name="telefone" defaultValue={initialData?.telefone ?? undefined} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="cidade">Cidade</Label>
-              <Input id="cidade" name="cidade" />
+              <Input id="cidade" name="cidade" defaultValue={initialData?.cidade ?? undefined} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="estado">Estado</Label>
-              <Input id="estado" name="estado" maxLength={2} placeholder="UF" />
+              <Input
+                id="estado"
+                name="estado"
+                maxLength={2}
+                placeholder="UF"
+                defaultValue={initialData?.estado?.slice(0, 2).toUpperCase() ?? undefined}
+              />
             </div>
           </div>
           <div className="space-y-2">
@@ -116,14 +129,14 @@ export function NovoClienteForm({ franquias }: { franquias: Franquia[] }) {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="plano">Plano</Label>
-            <Input id="plano" name="plano" required />
+            <Input id="plano" name="plano" defaultValue={initialData?.plano ?? undefined} required />
             {state?.fieldErrors?.plano && (
               <p className="text-sm text-destructive">{state.fieldErrors.plano[0]}</p>
             )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="tipoContrato">Tipo de contrato</Label>
-            <Select name="tipoContrato" defaultValue="MENSAL" onValueChange={(e) => setTipoContrato(e)}>
+            <Select name="tipoContrato" defaultValue={tipoContrato} onValueChange={(e) => setTipoContrato(e)}>
               <SelectTrigger id="tipoContrato" className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -170,13 +183,24 @@ export function NovoClienteForm({ franquias }: { franquias: Franquia[] }) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="inicioContrato">Início do contrato</Label>
-            <Input id="inicioContrato" name="inicioContrato" type="date" required />
+            <Input
+              id="inicioContrato"
+              name="inicioContrato"
+              type="date"
+              defaultValue={initialData?.inicioContrato ?? undefined}
+              required
+            />
             {state?.fieldErrors?.inicioContrato && (
               <p className="text-sm text-destructive">{state.fieldErrors.inicioContrato[0]}</p>
             )}
           </div>
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="renovacaoAutomatica" className="h-4 w-4" />
+            <input
+              type="checkbox"
+              name="renovacaoAutomatica"
+              className="h-4 w-4"
+              defaultChecked={initialData?.renovacaoAutomatica ?? false}
+            />
             Renovação automática
           </label>
           <div className="flex justify-end gap-2 pt-2">
