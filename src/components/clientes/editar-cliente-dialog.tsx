@@ -194,7 +194,7 @@ export function EditarClienteDialog({
             </div>
 
             <div className="space-y-2 rounded-lg bg-muted/40 p-3">
-              <Label htmlFor="d4signLink">Importar do D4Sign</Label>
+              <Label htmlFor="d4signLink">Importar do D4Sign </Label>
               <div className="flex gap-2">
                 <Input
                   id="d4signLink"
