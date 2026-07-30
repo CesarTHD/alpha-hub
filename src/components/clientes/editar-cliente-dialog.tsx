@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Pencil, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { useState } from "react";
+import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,6 +17,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { SubmitButton } from "@/components/submit-button";
 import { updateClienteDados } from "@/lib/actions/clientes";
 import { importarDadosClienteD4Sign } from "@/lib/actions/importar-contrato-d4sign";
+import { importarDadosClientePdf } from "@/lib/actions/importar-contrato-pdf";
+import { ImportarContrato } from "./importar-contrato";
 import { useServerAction } from "@/hooks/use-server-action";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { ContratoExtraido } from "@/lib/ai/contrato-extraction";
@@ -122,38 +123,25 @@ export function EditarClienteDialog({
   const [cidade, setCidade] = useState(cliente.cidade ?? "");
   const [estado, setEstado] = useState(cliente.estado ?? "");
   const [linkContratoD4Sign, setLinkContratoD4Sign] = useState(cliente.linkContratoD4Sign ?? "");
-
-  const [importError, setImportError] = useState<string | null>(null);
   const [inconsistencias, setInconsistencias] = useState<Inconsistencia[]>([]);
-  const [importing, startImportTransition] = useTransition();
 
-  function handleImportarD4Sign() {
-    setImportError(null);
-    setInconsistencias([]);
-    const formData = new FormData();
-    formData.set("documentoD4Sign", linkContratoD4Sign);
+  const importarPorLink = importarDadosClienteD4Sign.bind(null, cliente.id);
+  const importarPorPdf = importarDadosClientePdf.bind(null, cliente.id);
 
-    startImportTransition(async () => {
-      const result = await importarDadosClienteD4Sign(cliente.id, null, formData);
-      if (result?.ok && result.data) {
-        const { documento: doc, email: e, telefone: t, cidade: c, estado: uf } = result.data;
-        if (doc) setDocumento(doc);
-        if (e) setEmail(e);
-        if (t) setTelefone(t);
-        if (c) setCidade(c);
-        if (uf) setEstado(uf.slice(0, 2).toUpperCase());
-        const linkNormalizado = normalizeD4SignLink(linkContratoD4Sign);
-        if (linkNormalizado) setLinkContratoD4Sign(linkNormalizado);
-        if (contratoAtual) {
-          setInconsistencias(compararContrato(result.data, contratoAtual));
-        }
-        toast.success(result.message ?? "Dados importados do D4Sign.");
-      } else {
-        const msg = result?.message ?? "Não foi possível importar os dados.";
-        setImportError(msg);
-        toast.error(msg);
-      }
-    });
+  function handleContratoImportado(data: ContratoExtraido, link: string | null) {
+    const { documento: doc, email: e, telefone: t, cidade: c, estado: uf } = data;
+    if (doc) setDocumento(doc);
+    if (e) setEmail(e);
+    if (t) setTelefone(t);
+    if (c) setCidade(c);
+    if (uf) setEstado(uf.slice(0, 2).toUpperCase());
+    if (link) {
+      const linkNormalizado = normalizeD4SignLink(link);
+      if (linkNormalizado) setLinkContratoD4Sign(linkNormalizado);
+    }
+    if (contratoAtual) {
+      setInconsistencias(compararContrato(data, contratoAtual));
+    }
   }
 
   return (
@@ -197,35 +185,24 @@ export function EditarClienteDialog({
             </div>
 
             <div className="space-y-2 rounded-lg bg-muted/40 p-3">
-              <Label htmlFor="linkContratoD4Sign">Link ou UUID do contrato no D4Sign (opcional)</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="linkContratoD4Sign"
-                  name="linkContratoD4Sign"
-                  placeholder="https://secure.d4sign.com.br/desk/viewblob/... ou só o UUID"
-                  value={linkContratoD4Sign}
-                  onChange={(e) => setLinkContratoD4Sign(e.target.value)}
-                  disabled={importing}
-                  className="bg-background"
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={handleImportarD4Sign}
-                  disabled={importing || !linkContratoD4Sign.trim()}
-                >
-                  {importing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {importing ? "Importando..." : "Importar"}
-                </Button>
-              </div>
-              {(importError || state?.fieldErrors?.linkContratoD4Sign) && (
-                <p className="text-sm text-destructive">
-                  {importError || state?.fieldErrors?.linkContratoD4Sign?.[0]}
-                </p>
+              <Label>Importar contrato (opcional)</Label>
+              {/* Input hidden sempre montado: a aba "link" do ImportarContrato desmonta
+                  quando a aba "pdf" está ativa (Radix Tabs), então sem isso o valor
+                  não seria enviado no submit se o usuário trocasse de aba antes de salvar. */}
+              <input type="hidden" name="linkContratoD4Sign" value={linkContratoD4Sign} readOnly />
+              <ImportarContrato
+                onImported={handleContratoImportado}
+                importarPorLink={importarPorLink}
+                importarPorPdf={importarPorPdf}
+                linkValue={linkContratoD4Sign}
+                onLinkChange={setLinkContratoD4Sign}
+              />
+              {state?.fieldErrors?.linkContratoD4Sign && (
+                <p className="text-sm text-destructive">{state.fieldErrors.linkContratoD4Sign[0]}</p>
               )}
               <p className="text-xs text-muted-foreground">
-                Fica salvo no cadastro. &quot;Importar&quot; também preenche CPF/CNPJ, e-mail, telefone, cidade
-                e estado a partir do contrato assinado.
+                O link/UUID fica salvo no cadastro. Importar (por link ou PDF) também preenche CPF/CNPJ,
+                e-mail, telefone, cidade e estado a partir do contrato assinado.
               </p>
               {inconsistencias.length > 0 && (
                 <div className="space-y-1 rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-sm">

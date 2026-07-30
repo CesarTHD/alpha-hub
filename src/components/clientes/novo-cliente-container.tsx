@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ImportarContratoD4Sign } from "./importar-contrato-d4sign";
-import { ImportarContratoPdf } from "./importar-contrato-pdf";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ImportarContrato } from "./importar-contrato";
 import { NovoClienteForm } from "./novo-cliente-form";
+import { importarContratoD4Sign } from "@/lib/actions/importar-contrato-d4sign";
+import { importarContratoPdf } from "@/lib/actions/importar-contrato-pdf";
 import type { ContratoExtraido } from "@/lib/ai/contrato-extraction";
 
 type Franquia = { id: string; nome: string; cidade: string; estado: string };
@@ -26,10 +28,18 @@ export function NovoClienteContainer({ franquias }: { franquias: Franquia[] }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 lg:grid-cols-2">
-        <ImportarContratoD4Sign onImported={handleImported} />
-        <ImportarContratoPdf onImported={handleImported} />
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Importar contrato</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ImportarContrato
+            onImported={handleImported}
+            importarPorLink={importarContratoD4Sign}
+            importarPorPdf={importarContratoPdf}
+          />
+        </CardContent>
+      </Card>
       {infoAdicional.length > 0 && (
         <p className="text-sm text-muted-foreground">
           Identificado no contrato (não preenchido automaticamente): {infoAdicional.join(" · ")}
