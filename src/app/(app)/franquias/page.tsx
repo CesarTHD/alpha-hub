@@ -10,6 +10,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
 import { FranquiaFormDialog } from "@/components/franquias/franquia-form-dialog";
 import { TrocaProfitDialog } from "@/components/franquias/troca-profit-dialog";
 import { FranquiaAtivaToggle } from "@/components/franquias/franquia-ativa-toggle";
@@ -48,7 +50,21 @@ export default async function FranquiasPage() {
       <PageHeader
         title="Franquias"
         description="Unidades da Alpha e o Profit responsável por cada uma."
-        actions={nivel !== "none" ? <FranquiaFormDialog /> : undefined}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline" size="sm">
+              <a href="/franquias/export?formato=csv">
+                <Download className="mr-1 h-4 w-4" /> CSV
+              </a>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <a href="/franquias/export?formato=xlsx">
+                <Download className="mr-1 h-4 w-4" /> XLSX
+              </a>
+            </Button>
+            {nivel !== "none" && <FranquiaFormDialog />}
+          </div>
+        }
       />
 
       <Table>

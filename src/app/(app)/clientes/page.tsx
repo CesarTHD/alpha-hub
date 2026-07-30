@@ -14,12 +14,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/format";
-import { Plus } from "lucide-react";
-import type { Prisma, StatusContrato } from "@/generated/prisma/client";
+import { Plus, Download } from "lucide-react";
+import type { StatusContrato } from "@/generated/prisma/client";
 import { getCurrentUser } from "@/lib/current-user";
-import { canCreateCliente, clienteFranquiaScopeWhere } from "@/lib/rbac";
+import { canCreateCliente } from "@/lib/rbac";
 import { MultiSelectFilter } from "@/components/filters/multi-select-filter";
 import { encerrarContratosVencidos } from "@/lib/contrato-lifecycle";
+import { clientesWhere, toArray } from "@/lib/clientes-filtros";
 
 export const dynamic = "force-dynamic";
 
@@ -36,11 +37,6 @@ const STATUS_OPTIONS: { value: StatusContrato; label: string }[] = [
   { value: "ENCERRADO", label: "Encerrado" },
   { value: "CHURN", label: "Churn" },
 ];
-
-function toArray(value: string | string[] | undefined): string[] {
-  if (!value) return [];
-  return Array.isArray(value) ? value : [value];
-}
 
 export default async function ClientesPage({
   searchParams,
@@ -73,19 +69,7 @@ export default async function ClientesPage({
   });
   const PROFIT_OPTIONS = profits.map((p) => ({ value: p.id, label: p.nome }));
 
-  const filtros: Prisma.ClienteWhereInput[] = [{ deletedAt: null }, clienteFranquiaScopeWhere(usuario)];
-  if (nome) filtros.push({ nome: { contains: nome, mode: "insensitive" } });
-  if (franquia.length > 0) {
-    filtros.push({ carteiraHistorico: { some: { ativo: true, franquiaId: { in: franquia } } } });
-  }
-  if (profit.length > 0) {
-    filtros.push({
-      carteiraHistorico: {
-        some: { ativo: true, franquia: { historicoProfit: { some: { ativo: true, profitId: { in: profit } } } } },
-      },
-    });
-  }
-  const where: Prisma.ClienteWhereInput = { AND: filtros };
+  const where = clientesWhere(usuario, { nome: nome ?? "", status, franquia, profit });
 
   const clientesEncontrados = await db.cliente.findMany({
     where,
@@ -107,19 +91,41 @@ export default async function ClientesPage({
     ? clientesEncontrados.filter((c) => c.contratos[0] && status.includes(c.contratos[0].status))
     : clientesEncontrados;
 
+  function exportHref(formato: "csv" | "xlsx") {
+    const params = new URLSearchParams();
+    if (nome) params.set("nome", nome);
+    status.forEach((s) => params.append("status", s));
+    franquia.forEach((f) => params.append("franquia", f));
+    profit.forEach((p) => params.append("profit", p));
+    params.set("formato", formato);
+    return `/clientes/export?${params.toString()}`;
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Clientes"
         description="Toda a carteira de clientes da Alpha."
         actions={
-          canCreateCliente(usuario) ? (
-            <Button asChild>
-              <Link href="/clientes/novo">
-                <Plus className="mr-1 h-4 w-4" /> Novo cliente
-              </Link>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline" size="sm">
+              <a href={exportHref("csv")}>
+                <Download className="mr-1 h-4 w-4" /> CSV
+              </a>
             </Button>
-          ) : undefined
+            <Button asChild variant="outline" size="sm">
+              <a href={exportHref("xlsx")}>
+                <Download className="mr-1 h-4 w-4" /> XLSX
+              </a>
+            </Button>
+            {canCreateCliente(usuario) && (
+              <Button asChild>
+                <Link href="/clientes/novo">
+                  <Plus className="mr-1 h-4 w-4" /> Novo cliente
+                </Link>
+              </Button>
+            )}
+          </div>
         }
       />
 
