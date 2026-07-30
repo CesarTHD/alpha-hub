@@ -113,6 +113,18 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
                   segmento: cliente.segmento,
                   observacoes: cliente.observacoes,
                 }}
+                contratoAtual={
+                  contratoAtual
+                    ? {
+                        plano: contratoAtual.plano,
+                        tipoContrato: contratoAtual.tipoContrato,
+                        valorContrato: contratoAtual.valorContrato.toString(),
+                        valorMensal: contratoAtual.valorMensal.toString(),
+                        inicioContrato: contratoAtual.inicioContrato.toISOString(),
+                        renovacaoAutomatica: contratoAtual.renovacaoAutomatica,
+                      }
+                    : undefined
+                }
               />
             )}
           </CardHeader>

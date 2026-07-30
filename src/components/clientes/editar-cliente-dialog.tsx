@@ -19,6 +19,8 @@ import { SubmitButton } from "@/components/submit-button";
 import { updateClienteDados } from "@/lib/actions/clientes";
 import { importarDadosClienteD4Sign } from "@/lib/actions/importar-contrato-d4sign";
 import { useServerAction } from "@/hooks/use-server-action";
+import { formatCurrency, formatDate } from "@/lib/format";
+import type { ContratoExtraido } from "@/lib/ai/contrato-extraction";
 
 type Cliente = {
   id: string;
@@ -32,7 +34,82 @@ type Cliente = {
   observacoes: string | null;
 };
 
-export function EditarClienteDialog({ cliente }: { cliente: Cliente }) {
+type ContratoAtual = {
+  plano: string;
+  tipoContrato: string;
+  valorContrato: string;
+  valorMensal: string;
+  inicioContrato: string;
+  renovacaoAutomatica: boolean;
+};
+
+type Inconsistencia = { campo: string; cadastrado: string; contrato: string };
+
+const VALOR_MENSAL_DIVISOR: Record<string, number> = {
+  MENSAL: 1,
+  TRIMESTRAL: 3,
+  QUADRIMESTRAL: 4,
+  SEMESTRAL: 6,
+  ANUAL: 12,
+};
+
+function valoresDiferem(a: number, b: number) {
+  return Math.abs(a - b) > 0.01;
+}
+
+/** Compara o contrato extraído do D4Sign com o contrato ativo já cadastrado, sem alterar nada — só alerta. */
+function compararContrato(extraido: ContratoExtraido, atual: ContratoAtual): Inconsistencia[] {
+  const diffs: Inconsistencia[] = [];
+
+  if (extraido.plano && extraido.plano.trim().toLowerCase() !== atual.plano.trim().toLowerCase()) {
+    diffs.push({ campo: "Plano", cadastrado: atual.plano, contrato: extraido.plano });
+  }
+  if (extraido.tipoContrato && extraido.tipoContrato !== atual.tipoContrato) {
+    diffs.push({ campo: "Tipo de contrato", cadastrado: atual.tipoContrato, contrato: extraido.tipoContrato });
+  }
+  if (extraido.valorContrato != null && valoresDiferem(extraido.valorContrato, Number(atual.valorContrato))) {
+    diffs.push({
+      campo: "Valor do contrato",
+      cadastrado: formatCurrency(atual.valorContrato),
+      contrato: formatCurrency(extraido.valorContrato),
+    });
+  }
+  const divisor = VALOR_MENSAL_DIVISOR[extraido.tipoContrato ?? atual.tipoContrato];
+  if (extraido.valorContrato != null && divisor) {
+    const valorMensalExtraido = extraido.valorContrato / divisor;
+    if (valoresDiferem(valorMensalExtraido, Number(atual.valorMensal))) {
+      diffs.push({
+        campo: "Valor mensal",
+        cadastrado: formatCurrency(atual.valorMensal),
+        contrato: formatCurrency(valorMensalExtraido),
+      });
+    }
+  }
+  if (extraido.inicioContrato && extraido.inicioContrato.slice(0, 10) !== atual.inicioContrato.slice(0, 10)) {
+    diffs.push({
+      campo: "Início do contrato",
+      cadastrado: formatDate(atual.inicioContrato),
+      contrato: formatDate(extraido.inicioContrato),
+    });
+  }
+  if (extraido.renovacaoAutomatica != null && extraido.renovacaoAutomatica !== atual.renovacaoAutomatica) {
+    diffs.push({
+      campo: "Renovação automática",
+      cadastrado: atual.renovacaoAutomatica ? "Sim" : "Não",
+      contrato: extraido.renovacaoAutomatica ? "Sim" : "Não",
+    });
+  }
+
+  return diffs;
+}
+
+export function EditarClienteDialog({
+  cliente,
+  contratoAtual,
+}: {
+  cliente: Cliente;
+  contratoAtual?: ContratoAtual;
+}) {
   const [open, setOpen] = useState(false);
   const action = updateClienteDados.bind(null, cliente.id);
   const { state, pending, submit } = useServerAction(action, () => setOpen(false));
@@ -45,10 +122,12 @@ export function EditarClienteDialog({ cliente }: { cliente: Cliente }) {
 
   const [d4signLink, setD4signLink] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
+  const [inconsistencias, setInconsistencias] = useState<Inconsistencia[]>([]);
   const [importing, startImportTransition] = useTransition();
 
   function handleImportarD4Sign() {
     setImportError(null);
+    setInconsistencias([]);
     const formData = new FormData();
     formData.set("documentoD4Sign", d4signLink);
 
@@ -61,6 +140,9 @@ export function EditarClienteDialog({ cliente }: { cliente: Cliente }) {
         if (t) setTelefone(t);
         if (c) setCidade(c);
         if (uf) setEstado(uf.slice(0, 2).toUpperCase());
+        if (contratoAtual) {
+          setInconsistencias(compararContrato(result.data, contratoAtual));
+        }
         toast.success(result.message ?? "Dados importados do D4Sign.");
         setD4signLink("");
       } else {
@@ -128,6 +210,24 @@ export function EditarClienteDialog({ cliente }: { cliente: Cliente }) {
             <p className="text-xs text-muted-foreground">
               Preenche CPF/CNPJ, e-mail, telefone, cidade e estado a partir do contrato assinado.
             </p>
+            {inconsistencias.length > 0 && (
+              <div className="space-y-1 rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-sm">
+                <p className="font-medium text-destructive">
+                  Dados do contrato assinado divergem do que está cadastrado na plataforma:
+                </p>
+                <ul className="list-disc space-y-0.5 pl-4">
+                  {inconsistencias.map((i) => (
+                    <li key={i.campo}>
+                      <span className="font-medium">{i.campo}:</span> cadastrado{" "}
+                      <strong>{i.cadastrado}</strong>, no contrato assinado <strong>{i.contrato}</strong>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted-foreground">
+                  Isso não altera o contrato automaticamente — revise e corrija pelas ações de contrato, se necessário.
+                </p>
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
