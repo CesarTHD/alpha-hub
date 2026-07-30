@@ -216,6 +216,46 @@ export async function registrarChurn(_prev: ActionState, formData: FormData): Pr
 }
 
 // ---------------------------------------------------------------------------
+// Encerramento (manual — diferente de VENCIDO, que é automático)
+// ---------------------------------------------------------------------------
+
+const encerramentoSchema = z.object({
+  clienteId: z.string().min(1),
+  contratoId: z.string().min(1),
+  motivo: optionalText(z.string().trim()),
+});
+
+export async function registrarEncerramento(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = encerramentoSchema.safeParse({
+    clienteId: formData.get("clienteId"),
+    contratoId: formData.get("contratoId"),
+    motivo: formData.get("motivo"),
+  });
+  if (!parsed.success) return { ok: false, fieldErrors: parsed.error.flatten().fieldErrors };
+
+  const { usuario, allowed } = await requireClienteAccess(parsed.data.clienteId);
+  if (!allowed || !canManageContratos(usuario)) return { ok: false, message: "Acesso negado." };
+  const agora = new Date();
+
+  await db.$transaction(async (tx) => {
+    await tx.contrato.update({ where: { id: parsed.data.contratoId }, data: { status: "ENCERRADO" } });
+    await tx.evento.create({
+      data: {
+        clienteId: parsed.data.clienteId,
+        contratoId: parsed.data.contratoId,
+        tipoEvento: "ENCERRAMENTO_CONTRATO",
+        dataEvento: agora,
+        motivo: parsed.data.motivo || null,
+        usuarioResponsavelId: usuario.id,
+      },
+    });
+  });
+
+  revalidateCliente(parsed.data.clienteId);
+  return { ok: true, message: "Contrato encerrado." };
+}
+
+// ---------------------------------------------------------------------------
 // Transferência de franquia
 // ---------------------------------------------------------------------------
 

@@ -169,6 +169,9 @@ enum TipoContrato {
 enum StatusContrato {
   ATIVO
   PAUSADO
+  /// Prazo do contrato passou sem renovação — automático (ver marcarContratosVencidos).
+  /// Diferente de ENCERRADO, que só é definido por ação manual de um Profit/Franquia/Admin.
+  VENCIDO
   ENCERRADO
   CHURN
 }
@@ -208,6 +211,7 @@ enum TipoEvento {
   PAUSA
   RETOMADA
   CHURN
+  VENCIMENTO_CONTRATO
   ENCERRAMENTO_CONTRATO
   ALTERACAO_PLANO
   ALTERACAO_VALOR

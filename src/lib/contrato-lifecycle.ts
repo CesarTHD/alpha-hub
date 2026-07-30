@@ -24,8 +24,19 @@ export function calcularFimContrato(inicioContrato: Date, tipoContrato: TipoCont
  * ficam presos em "ATIVO" para sempre, já que nada muda seu status
  * automaticamente. Chamado no topo das páginas que exibem status de
  * contrato/cliente para manter o dado sempre corrente.
+ *
+ * Marca como VENCIDO, não ENCERRADO — "Encerrado" é reservado para quando um
+ * Profit, uma Franquia ou o Administrador encerra o contrato manualmente (ver
+ * registrarEncerramento em lifecycle.ts). "Vencido" é só o vencimento
+ * automático do prazo, sem ninguém ter agido sobre ele ainda.
+ *
+ * A atualização é feita contrato a contrato (updateMany condicionado a
+ * status: "ATIVO", não só por id) para não criar um evento duplicado quando
+ * duas requisições concorrentes disparam este sweep ao mesmo tempo — sem essa
+ * checagem, as duas veriam o contrato como elegível antes de qualquer uma
+ * escrever, e ambas registrariam o evento.
  */
-export async function encerrarContratosVencidos() {
+export async function marcarContratosVencidos() {
   const agora = new Date();
 
   const vencidos = await db.contrato.findMany({
@@ -43,20 +54,23 @@ export async function encerrarContratosVencidos() {
   const usuario = await getCurrentUser();
 
   await db.$transaction(async (tx) => {
-    await tx.contrato.updateMany({
-      where: { id: { in: vencidos.map((c) => c.id) } },
-      data: { status: "ENCERRADO" },
-    });
+    for (const contrato of vencidos) {
+      const { count } = await tx.contrato.updateMany({
+        where: { id: contrato.id, status: "ATIVO" },
+        data: { status: "VENCIDO" },
+      });
+      if (count === 0) continue; // outra requisição já processou este contrato
 
-    await tx.evento.createMany({
-      data: vencidos.map((c) => ({
-        clienteId: c.clienteId,
-        contratoId: c.id,
-        tipoEvento: "ENCERRAMENTO_CONTRATO" as const,
-        dataEvento: c.fimContrato!,
-        motivo: "Prazo do contrato expirado sem renovação",
-        usuarioResponsavelId: usuario.id,
-      })),
-    });
+      await tx.evento.create({
+        data: {
+          clienteId: contrato.clienteId,
+          contratoId: contrato.id,
+          tipoEvento: "VENCIMENTO_CONTRATO",
+          dataEvento: contrato.fimContrato!,
+          motivo: "Prazo do contrato vencido sem renovação",
+          usuarioResponsavelId: usuario.id,
+        },
+      });
+    }
   });
 }

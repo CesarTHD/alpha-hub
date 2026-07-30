@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import type { Prisma, TipoContrato } from "@/generated/prisma/client";
-import { encerrarContratosVencidos } from "@/lib/contrato-lifecycle";
+import { marcarContratosVencidos } from "@/lib/contrato-lifecycle";
 
 export type DashboardScope = { franquiaId: string } | null;
 
@@ -23,7 +23,7 @@ function contarPorSegmento(rows: { tipoContrato: TipoContrato }[]) {
 }
 
 export async function getDashboardData(scope: DashboardScope = null) {
-  await encerrarContratosVencidos();
+  await marcarContratosVencidos();
 
   const agora = new Date();
   const inicioMes = startOfMonth(agora);

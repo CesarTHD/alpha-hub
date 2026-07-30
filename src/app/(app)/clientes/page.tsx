@@ -19,7 +19,7 @@ import type { StatusContrato } from "@/generated/prisma/client";
 import { getCurrentUser } from "@/lib/current-user";
 import { canCreateCliente } from "@/lib/rbac";
 import { MultiSelectFilter } from "@/components/filters/multi-select-filter";
-import { encerrarContratosVencidos } from "@/lib/contrato-lifecycle";
+import { marcarContratosVencidos } from "@/lib/contrato-lifecycle";
 import { clientesWhere, toArray } from "@/lib/clientes-filtros";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +27,7 @@ export const dynamic = "force-dynamic";
 const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   ATIVO: "default",
   PAUSADO: "outline",
+  VENCIDO: "destructive",
   ENCERRADO: "secondary",
   CHURN: "destructive",
 };
@@ -34,6 +35,7 @@ const statusVariant: Record<string, "default" | "secondary" | "destructive" | "o
 const STATUS_OPTIONS: { value: StatusContrato; label: string }[] = [
   { value: "ATIVO", label: "Ativo" },
   { value: "PAUSADO", label: "Pausado" },
+  { value: "VENCIDO", label: "Vencido" },
   { value: "ENCERRADO", label: "Encerrado" },
   { value: "CHURN", label: "Churn" },
 ];
@@ -53,7 +55,7 @@ export default async function ClientesPage({
   const franquia = toArray(franquiaParam);
   const profit = toArray(profitParam);
   const usuario = await getCurrentUser();
-  await encerrarContratosVencidos();
+  await marcarContratosVencidos();
 
   const franquias = await db.franquia.findMany({
     where: { deletedAt: null },

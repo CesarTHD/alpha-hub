@@ -1,0 +1,5 @@
+-- AlterEnum
+ALTER TYPE "StatusContrato" ADD VALUE 'VENCIDO';
+
+-- AlterEnum
+ALTER TYPE "TipoEvento" ADD VALUE 'VENCIMENTO_CONTRATO';

@@ -5,6 +5,7 @@ export const tipoEventoLabel: Record<string, string> = {
   PAUSA: "Pausa",
   RETOMADA: "Retomada",
   CHURN: "Churn",
+  VENCIMENTO_CONTRATO: "Vencimento de contrato",
   ENCERRAMENTO_CONTRATO: "Encerramento de contrato",
   ALTERACAO_PLANO: "Alteração de plano",
   ALTERACAO_VALOR: "Alteração de valor",
@@ -23,6 +24,7 @@ export const tipoEventoBadgeVariant: Record<
   PAUSA: "outline",
   RETOMADA: "default",
   CHURN: "destructive",
+  VENCIMENTO_CONTRATO: "destructive",
   ENCERRAMENTO_CONTRATO: "secondary",
   ALTERACAO_PLANO: "secondary",
   ALTERACAO_VALOR: "secondary",
@@ -34,6 +36,7 @@ export const tipoEventoBadgeVariant: Record<
 export const statusContratoLabel: Record<string, string> = {
   ATIVO: "Ativo",
   PAUSADO: "Pausado",
+  VENCIDO: "Vencido",
   ENCERRADO: "Encerrado",
   CHURN: "Churn",
 };

@@ -20,6 +20,7 @@ import { EditarClienteDialog } from "@/components/clientes/editar-cliente-dialog
 import { TransferirFranquiaDialog } from "@/components/clientes/transferir-franquia-dialog";
 import { RenovacaoDialog } from "@/components/clientes/renovacao-dialog";
 import { ChurnDialog } from "@/components/clientes/churn-dialog";
+import { EncerramentoDialog } from "@/components/clientes/encerramento-dialog";
 import { PausaButton, RetomadaButton } from "@/components/clientes/pausa-retomada-buttons";
 import { AlterarPlanoDialog } from "@/components/clientes/alterar-plano-dialog";
 import { AlterarValorDialog } from "@/components/clientes/alterar-valor-dialog";
@@ -33,11 +34,12 @@ import {
   canTransferirFranquia,
   clienteFranquiaScopeWhere,
 } from "@/lib/rbac";
-import { encerrarContratosVencidos } from "@/lib/contrato-lifecycle";
+import { marcarContratosVencidos } from "@/lib/contrato-lifecycle";
 
 const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   ATIVO: "default",
   PAUSADO: "outline",
+  VENCIDO: "destructive",
   ENCERRADO: "secondary",
   CHURN: "destructive",
 };
@@ -47,7 +49,7 @@ export const dynamic = "force-dynamic";
 export default async function ClienteDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const usuario = await getCurrentUser();
-  await encerrarContratosVencidos();
+  await marcarContratosVencidos();
 
   const cliente = await db.cliente.findFirst({
     where: { id, deletedAt: null, ...clienteFranquiaScopeWhere(usuario) },
@@ -70,10 +72,10 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
 
   const carteiraAtual = cliente.carteiraHistorico.find((c) => c.ativo);
   const ultimaCarteira = carteiraAtual ?? cliente.carteiraHistorico[0];
-  // Inclui ENCERRADO para que o cliente ainda possa renovar após o prazo do
-  // contrato vencer sem renovação (ver encerrarContratosVencidos).
+  // Inclui VENCIDO/ENCERRADO para que o cliente ainda possa renovar mesmo sem
+  // contrato ativo (ver marcarContratosVencidos e registrarEncerramento).
   const contratoAtual = cliente.contratos.find(
-    (c) => c.status === "ATIVO" || c.status === "PAUSADO" || c.status === "ENCERRADO",
+    (c) => c.status === "ATIVO" || c.status === "PAUSADO" || c.status === "VENCIDO" || c.status === "ENCERRADO",
   );
   const profitAtual = ultimaCarteira?.franquia.historicoProfit[0]?.profit;
 
@@ -237,7 +239,7 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
                     {contratoAtual.status === "PAUSADO" && (
                       <RetomadaButton clienteId={cliente.id} contratoId={contratoAtual.id} />
                     )}
-                    {contratoAtual.status !== "ENCERRADO" && (
+                    {contratoAtual.status !== "ENCERRADO" && contratoAtual.status !== "VENCIDO" && (
                       <>
                         <AlterarPlanoDialog
                           clienteId={cliente.id}
@@ -251,6 +253,11 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
                         />
                         <ChurnDialog clienteId={cliente.id} contratoId={contratoAtual.id} />
                       </>
+                    )}
+                    {(contratoAtual.status === "ATIVO" ||
+                      contratoAtual.status === "PAUSADO" ||
+                      contratoAtual.status === "VENCIDO") && (
+                      <EncerramentoDialog clienteId={cliente.id} contratoId={contratoAtual.id} />
                     )}
                   </div>
                 )}
