@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/current-user";
 import { canCreateCliente, canEditCliente, hasFranquiaScope } from "@/lib/rbac";
 import { calcularFimContrato } from "@/lib/contrato-lifecycle";
+import { normalizeD4SignLink } from "@/lib/d4sign/link";
 import type { ActionState } from "./action-state";
 import { optionalText } from "./zod-helpers";
 import { requireClienteAccess } from "./guards";
@@ -26,6 +27,7 @@ const novoClienteSchema = z.object({
   valorMensal: z.coerce.number().positive("Informe o valor mensal"),
   inicioContrato: z.string().min(1, "Informe a data de início"),
   renovacaoAutomatica: z.coerce.boolean().optional(),
+  linkContratoD4Sign: optionalText(z.string().trim()),
 });
 
 export async function createClienteComContrato(
@@ -47,6 +49,7 @@ export async function createClienteComContrato(
     valorMensal: formData.get("valorMensal"),
     inicioContrato: formData.get("inicioContrato"),
     renovacaoAutomatica: formData.get("renovacaoAutomatica") === "on",
+    linkContratoD4Sign: formData.get("linkContratoD4Sign"),
   });
 
   if (!parsed.success) {
@@ -68,6 +71,14 @@ export async function createClienteComContrato(
     return { ok: false, fieldErrors: { documento: ["Já existe um cliente com este documento"] } };
   }
 
+  let linkContratoD4Sign: string | null = null;
+  if (parsed.data.linkContratoD4Sign) {
+    linkContratoD4Sign = normalizeD4SignLink(parsed.data.linkContratoD4Sign);
+    if (!linkContratoD4Sign) {
+      return { ok: false, fieldErrors: { linkContratoD4Sign: ["Link ou UUID do D4Sign inválido"] } };
+    }
+  }
+
   const inicio = new Date(parsed.data.inicioContrato);
 
   const cliente = await db.$transaction(async (tx) => {
@@ -80,6 +91,7 @@ export async function createClienteComContrato(
         cidade: parsed.data.cidade || null,
         estado: parsed.data.estado || null,
         segmento: parsed.data.segmento || null,
+        linkContratoD4Sign,
         createdById: usuario.id,
         updatedById: usuario.id,
       },
@@ -129,6 +141,7 @@ const clienteDadosSchema = z.object({
   estado: optionalText(z.string().trim()),
   segmento: optionalText(z.string().trim()),
   observacoes: optionalText(z.string().trim()),
+  linkContratoD4Sign: optionalText(z.string().trim()),
 });
 
 export async function updateClienteDados(
@@ -145,6 +158,7 @@ export async function updateClienteDados(
     estado: formData.get("estado"),
     segmento: formData.get("segmento"),
     observacoes: formData.get("observacoes"),
+    linkContratoD4Sign: formData.get("linkContratoD4Sign"),
   });
 
   if (!parsed.success) {
@@ -154,6 +168,14 @@ export async function updateClienteDados(
   const { usuario, allowed } = await requireClienteAccess(id);
   if (!allowed || !canEditCliente(usuario)) {
     return { ok: false, message: "Acesso negado." };
+  }
+
+  let linkContratoD4Sign: string | null = null;
+  if (parsed.data.linkContratoD4Sign) {
+    linkContratoD4Sign = normalizeD4SignLink(parsed.data.linkContratoD4Sign);
+    if (!linkContratoD4Sign) {
+      return { ok: false, fieldErrors: { linkContratoD4Sign: ["Link ou UUID do D4Sign inválido"] } };
+    }
   }
 
   await db.cliente.update({
@@ -167,6 +189,7 @@ export async function updateClienteDados(
       estado: parsed.data.estado || null,
       segmento: parsed.data.segmento || null,
       observacoes: parsed.data.observacoes || null,
+      linkContratoD4Sign,
       updatedById: usuario.id,
     },
   });

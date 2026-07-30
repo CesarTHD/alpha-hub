@@ -7,12 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { importarContratoD4Sign } from "@/lib/actions/importar-contrato-d4sign";
+import { normalizeD4SignLink } from "@/lib/d4sign/link";
 import type { ContratoExtraido } from "@/lib/ai/contrato-extraction";
 
 export function ImportarContratoD4Sign({
   onImported,
 }: {
-  onImported: (data: ContratoExtraido) => void;
+  onImported: (data: ContratoExtraido, linkContratoD4Sign: string | null) => void;
 }) {
   const [link, setLink] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +28,7 @@ export function ImportarContratoD4Sign({
       const result = await importarContratoD4Sign(null, formData);
       if (result?.ok && result.data) {
         toast.success(result.message ?? "Contrato importado.");
-        onImported(result.data);
+        onImported(result.data, normalizeD4SignLink(link));
       } else {
         const msg = result?.message ?? "Não foi possível importar o contrato.";
         setError(msg);

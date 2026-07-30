@@ -112,6 +112,7 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
                   estado: cliente.estado,
                   segmento: cliente.segmento,
                   observacoes: cliente.observacoes,
+                  linkContratoD4Sign: cliente.linkContratoD4Sign,
                 }}
                 contratoAtual={
                   contratoAtual
@@ -147,6 +148,19 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
             {cliente.observacoes && (
               <p>
                 <span className="text-muted-foreground">Observações:</span> {cliente.observacoes}
+              </p>
+            )}
+            {cliente.linkContratoD4Sign && (
+              <p>
+                <span className="text-muted-foreground">Contrato D4Sign:</span>{" "}
+                <a
+                  href={cliente.linkContratoD4Sign}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  Ver documento
+                </a>
               </p>
             )}
           </CardContent>

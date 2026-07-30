@@ -10,10 +10,12 @@ type Franquia = { id: string; nome: string; cidade: string; estado: string };
 
 export function NovoClienteContainer({ franquias }: { franquias: Franquia[] }) {
   const [importedData, setImportedData] = useState<ContratoExtraido | null>(null);
+  const [linkContratoD4Sign, setLinkContratoD4Sign] = useState<string | null>(null);
   const [importCount, setImportCount] = useState(0);
 
-  function handleImported(data: ContratoExtraido) {
+  function handleImported(data: ContratoExtraido, link: string | null = null) {
     setImportedData(data);
+    if (link) setLinkContratoD4Sign(link);
     setImportCount((c) => c + 1);
   }
 
@@ -33,7 +35,12 @@ export function NovoClienteContainer({ franquias }: { franquias: Franquia[] }) {
           Identificado no contrato (não preenchido automaticamente): {infoAdicional.join(" · ")}
         </p>
       )}
-      <NovoClienteForm key={importCount} franquias={franquias} initialData={importedData} />
+      <NovoClienteForm
+        key={importCount}
+        franquias={franquias}
+        initialData={importedData}
+        linkContratoD4Sign={linkContratoD4Sign}
+      />
     </div>
   );
 }

@@ -21,6 +21,7 @@ import { importarDadosClienteD4Sign } from "@/lib/actions/importar-contrato-d4si
 import { useServerAction } from "@/hooks/use-server-action";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { ContratoExtraido } from "@/lib/ai/contrato-extraction";
+import { normalizeD4SignLink } from "@/lib/d4sign/link";
 
 type Cliente = {
   id: string;
@@ -32,6 +33,7 @@ type Cliente = {
   estado: string | null;
   segmento: string | null;
   observacoes: string | null;
+  linkContratoD4Sign: string | null;
 };
 
 type ContratoAtual = {
@@ -119,8 +121,8 @@ export function EditarClienteDialog({
   const [telefone, setTelefone] = useState(cliente.telefone ?? "");
   const [cidade, setCidade] = useState(cliente.cidade ?? "");
   const [estado, setEstado] = useState(cliente.estado ?? "");
+  const [linkContratoD4Sign, setLinkContratoD4Sign] = useState(cliente.linkContratoD4Sign ?? "");
 
-  const [d4signLink, setD4signLink] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
   const [inconsistencias, setInconsistencias] = useState<Inconsistencia[]>([]);
   const [importing, startImportTransition] = useTransition();
@@ -129,7 +131,7 @@ export function EditarClienteDialog({
     setImportError(null);
     setInconsistencias([]);
     const formData = new FormData();
-    formData.set("documentoD4Sign", d4signLink);
+    formData.set("documentoD4Sign", linkContratoD4Sign);
 
     startImportTransition(async () => {
       const result = await importarDadosClienteD4Sign(cliente.id, null, formData);
@@ -140,11 +142,12 @@ export function EditarClienteDialog({
         if (t) setTelefone(t);
         if (c) setCidade(c);
         if (uf) setEstado(uf.slice(0, 2).toUpperCase());
+        const linkNormalizado = normalizeD4SignLink(linkContratoD4Sign);
+        if (linkNormalizado) setLinkContratoD4Sign(linkNormalizado);
         if (contratoAtual) {
           setInconsistencias(compararContrato(result.data, contratoAtual));
         }
         toast.success(result.message ?? "Dados importados do D4Sign.");
-        setD4signLink("");
       } else {
         const msg = result?.message ?? "Não foi possível importar os dados.";
         setImportError(msg);
@@ -194,13 +197,14 @@ export function EditarClienteDialog({
             </div>
 
             <div className="space-y-2 rounded-lg bg-muted/40 p-3">
-              <Label htmlFor="d4signLink">Importar do D4Sign </Label>
+              <Label htmlFor="linkContratoD4Sign">Link ou UUID do contrato no D4Sign (opcional)</Label>
               <div className="flex gap-2">
                 <Input
-                  id="d4signLink"
-                  placeholder="Link ou UUID do documento no D4Sign"
-                  value={d4signLink}
-                  onChange={(e) => setD4signLink(e.target.value)}
+                  id="linkContratoD4Sign"
+                  name="linkContratoD4Sign"
+                  placeholder="https://secure.d4sign.com.br/desk/viewblob/... ou só o UUID"
+                  value={linkContratoD4Sign}
+                  onChange={(e) => setLinkContratoD4Sign(e.target.value)}
                   disabled={importing}
                   className="bg-background"
                 />
@@ -208,15 +212,20 @@ export function EditarClienteDialog({
                   type="button"
                   variant="secondary"
                   onClick={handleImportarD4Sign}
-                  disabled={importing || !d4signLink.trim()}
+                  disabled={importing || !linkContratoD4Sign.trim()}
                 >
                   {importing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {importing ? "Importando..." : "Importar"}
                 </Button>
               </div>
-              {importError && <p className="text-sm text-destructive">{importError}</p>}
+              {(importError || state?.fieldErrors?.linkContratoD4Sign) && (
+                <p className="text-sm text-destructive">
+                  {importError || state?.fieldErrors?.linkContratoD4Sign?.[0]}
+                </p>
+              )}
               <p className="text-xs text-muted-foreground">
-                Preenche CPF/CNPJ, e-mail, telefone, cidade e estado a partir do contrato assinado.
+                Fica salvo no cadastro. &quot;Importar&quot; também preenche CPF/CNPJ, e-mail, telefone, cidade
+                e estado a partir do contrato assinado.
               </p>
               {inconsistencias.length > 0 && (
                 <div className="space-y-1 rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-sm">

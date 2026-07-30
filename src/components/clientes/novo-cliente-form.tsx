@@ -23,9 +23,11 @@ type Franquia = { id: string; nome: string; cidade: string; estado: string };
 export function NovoClienteForm({
   franquias,
   initialData,
+  linkContratoD4Sign,
 }: {
   franquias: Franquia[];
   initialData?: ContratoExtraido | null;
+  linkContratoD4Sign?: string | null;
 }) {
   const [state, formAction] = useActionState(createClienteComContrato, initialActionState);
   const [valorContrato, setValorContrato] = useState(initialData?.valorContrato?.toString() ?? "");
@@ -203,6 +205,18 @@ export function NovoClienteForm({
             />
             Renovação automática
           </label>
+          <div className="space-y-2">
+            <Label htmlFor="linkContratoD4Sign">Link ou UUID do contrato no D4Sign (opcional)</Label>
+            <Input
+              id="linkContratoD4Sign"
+              name="linkContratoD4Sign"
+              placeholder="https://secure.d4sign.com.br/desk/viewblob/... ou só o UUID"
+              defaultValue={linkContratoD4Sign ?? undefined}
+            />
+            {state?.fieldErrors?.linkContratoD4Sign && (
+              <p className="text-sm text-destructive">{state.fieldErrors.linkContratoD4Sign[0]}</p>
+            )}
+          </div>
           <div className="flex justify-end gap-2 pt-2">
             <SubmitButton pendingLabel="Criando...">Criar cliente e contrato</SubmitButton>
           </div>

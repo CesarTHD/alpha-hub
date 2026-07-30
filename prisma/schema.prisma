@@ -106,20 +106,24 @@ model FranquiaProfitHistorico {
 // ---------------------------------------------------------------------------
 
 model Cliente {
-  id          String    @id @default(cuid())
-  nome        String
-  documento   String    @unique
-  email       String?
-  telefone    String?
-  cidade      String?
-  estado      String?
-  segmento    String?
-  observacoes String?
-  deletedAt   DateTime? @map("deleted_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  createdById String?   @map("created_by")
-  updatedById String?   @map("updated_by")
+  id                 String    @id @default(cuid())
+  nome               String
+  documento          String    @unique
+  email              String?
+  telefone           String?
+  cidade             String?
+  estado             String?
+  segmento           String?
+  observacoes        String?
+  /// Link de visualização do primeiro contrato no D4Sign (sempre normalizado
+  /// para https://secure.d4sign.com.br/desk/viewblob/<uuid>, mesmo se o
+  /// usuário colar só o UUID ou outro formato de link do D4Sign).
+  linkContratoD4Sign String?   @map("link_contrato_d4sign")
+  deletedAt          DateTime? @map("deleted_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  createdById        String?   @map("created_by")
+  updatedById        String?   @map("updated_by")
 
   criadoPor     Usuario? @relation("ClienteCreatedBy", fields: [createdById], references: [id])
   atualizadoPor Usuario? @relation("ClienteUpdatedBy", fields: [updatedById], references: [id])

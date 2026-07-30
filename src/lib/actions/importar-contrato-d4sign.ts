@@ -4,7 +4,8 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/current-user";
 import { canCreateCliente, canEditCliente } from "@/lib/rbac";
 import { requireClienteAccess } from "./guards";
-import { extractD4SignUuid, downloadD4SignDocumentPdf, D4SignError } from "@/lib/d4sign/client";
+import { downloadD4SignDocumentPdf, D4SignError } from "@/lib/d4sign/client";
+import { extractD4SignUuid } from "@/lib/d4sign/link";
 import { extrairContratoDePdf } from "./contrato-pdf-pipeline";
 import type { ImportContratoState } from "./import-contrato-state";
 

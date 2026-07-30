@@ -1,12 +1,4 @@
-const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-
 export class D4SignError extends Error {}
-
-/** Aceita tanto um UUID puro quanto um link do D4Sign contendo o UUID do documento. */
-export function extractD4SignUuid(input: string): string | null {
-  const match = input.trim().match(UUID_RE);
-  return match ? match[0].toLowerCase() : null;
-}
 
 type D4SignDownloadLinkResponse = { url?: string; name?: string; message?: string };
 type D4SignApiErrorBody = { status?: boolean; error?: string; message?: string };
