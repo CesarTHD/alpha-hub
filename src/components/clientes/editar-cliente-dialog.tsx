@@ -160,7 +160,7 @@ export function EditarClienteDialog({
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Editar dados do cliente</DialogTitle>
         </DialogHeader>
@@ -169,106 +169,116 @@ export function EditarClienteDialog({
             e.preventDefault();
             submit(new FormData(e.currentTarget));
           }}
-          className="space-y-4"
+          className="flex min-h-0 flex-1 flex-col"
         >
-          <div className="space-y-2">
-            <Label htmlFor="nome">Nome / Razão social</Label>
-            <Input id="nome" name="nome" defaultValue={cliente.nome} required />
-            {state?.fieldErrors?.nome && (
-              <p className="text-sm text-destructive">{state.fieldErrors.nome[0]}</p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="documento">CPF/CNPJ</Label>
-            <Input
-              id="documento"
-              name="documento"
-              value={documento}
-              onChange={(e) => setDocumento(e.target.value)}
-              required
-            />
-            {state?.fieldErrors?.documento && (
-              <p className="text-sm text-destructive">{state.fieldErrors.documento[0]}</p>
-            )}
-          </div>
-          <div className="space-y-2 rounded-md border border-dashed p-3">
-            <Label htmlFor="d4signLink">Importar do D4Sign</Label>
-            <div className="flex gap-2">
-              <Input
-                id="d4signLink"
-                placeholder="Link ou UUID do documento no D4Sign"
-                value={d4signLink}
-                onChange={(e) => setD4signLink(e.target.value)}
-                disabled={importing}
-              />
-              <Button type="button" variant="secondary" onClick={handleImportarD4Sign} disabled={importing || !d4signLink.trim()}>
-                {importing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {importing ? "Importando..." : "Importar"}
-              </Button>
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-0.5 py-1">
+            <div className="space-y-2">
+              <Label htmlFor="nome">Nome / Razão social</Label>
+              <Input id="nome" name="nome" defaultValue={cliente.nome} required />
+              {state?.fieldErrors?.nome && (
+                <p className="text-sm text-destructive">{state.fieldErrors.nome[0]}</p>
+              )}
             </div>
-            {importError && <p className="text-sm text-destructive">{importError}</p>}
-            <p className="text-xs text-muted-foreground">
-              Preenche CPF/CNPJ, e-mail, telefone, cidade e estado a partir do contrato assinado.
-            </p>
-            {inconsistencias.length > 0 && (
-              <div className="space-y-1 rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-sm">
-                <p className="font-medium text-destructive">
-                  Dados do contrato assinado divergem do que está cadastrado na plataforma:
-                </p>
-                <ul className="list-disc space-y-0.5 pl-4">
-                  {inconsistencias.map((i) => (
-                    <li key={i.campo}>
-                      <span className="font-medium">{i.campo}:</span> cadastrado{" "}
-                      <strong>{i.cadastrado}</strong>, no contrato assinado <strong>{i.contrato}</strong>
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-xs text-muted-foreground">
-                  Isso não altera o contrato automaticamente — revise e corrija pelas ações de contrato, se necessário.
-                </p>
+            <div className="space-y-2">
+              <Label htmlFor="documento">CPF/CNPJ</Label>
+              <Input
+                id="documento"
+                name="documento"
+                value={documento}
+                onChange={(e) => setDocumento(e.target.value)}
+                required
+              />
+              {state?.fieldErrors?.documento && (
+                <p className="text-sm text-destructive">{state.fieldErrors.documento[0]}</p>
+              )}
+            </div>
+
+            <div className="space-y-2 rounded-lg bg-muted/40 p-3">
+              <Label htmlFor="d4signLink">Importar do D4Sign</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="d4signLink"
+                  placeholder="Link ou UUID do documento no D4Sign"
+                  value={d4signLink}
+                  onChange={(e) => setD4signLink(e.target.value)}
+                  disabled={importing}
+                  className="bg-background"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleImportarD4Sign}
+                  disabled={importing || !d4signLink.trim()}
+                >
+                  {importing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {importing ? "Importando..." : "Importar"}
+                </Button>
               </div>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+              {importError && <p className="text-sm text-destructive">{importError}</p>}
+              <p className="text-xs text-muted-foreground">
+                Preenche CPF/CNPJ, e-mail, telefone, cidade e estado a partir do contrato assinado.
+              </p>
+              {inconsistencias.length > 0 && (
+                <div className="space-y-1 rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-sm">
+                  <p className="font-medium text-destructive">
+                    Dados do contrato assinado divergem do que está cadastrado na plataforma:
+                  </p>
+                  <ul className="list-disc space-y-0.5 pl-4">
+                    {inconsistencias.map((i) => (
+                      <li key={i.campo}>
+                        <span className="font-medium">{i.campo}:</span> cadastrado{" "}
+                        <strong>{i.cadastrado}</strong>, no contrato assinado <strong>{i.contrato}</strong>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-muted-foreground">
+                    Isso não altera o contrato automaticamente — revise e corrija pelas ações de contrato, se necessário.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">E-mail</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="telefone">Telefone</Label>
+                <Input id="telefone" name="telefone" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="cidade">Cidade</Label>
+                <Input id="cidade" name="cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="estado">Estado</Label>
+                <Input
+                  id="estado"
+                  name="estado"
+                  maxLength={2}
+                  placeholder="UF"
+                  value={estado}
+                  onChange={(e) => setEstado(e.target.value)}
+                />
+              </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="telefone">Telefone</Label>
-              <Input id="telefone" name="telefone" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="cidade">Cidade</Label>
-              <Input id="cidade" name="cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} />
+              <Label htmlFor="segmento">Segmento</Label>
+              <Input id="segmento" name="segmento" defaultValue={cliente.segmento ?? ""} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="estado">Estado</Label>
-              <Input
-                id="estado"
-                name="estado"
-                maxLength={2}
-                placeholder="UF"
-                value={estado}
-                onChange={(e) => setEstado(e.target.value)}
-              />
+              <Label htmlFor="observacoes">Observações</Label>
+              <Textarea id="observacoes" name="observacoes" defaultValue={cliente.observacoes ?? ""} />
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="segmento">Segmento</Label>
-            <Input id="segmento" name="segmento" defaultValue={cliente.segmento ?? ""} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="observacoes">Observações</Label>
-            <Textarea id="observacoes" name="observacoes" defaultValue={cliente.observacoes ?? ""} />
           </div>
           <DialogFooter>
             <SubmitButton pending={pending}>Salvar alterações</SubmitButton>
