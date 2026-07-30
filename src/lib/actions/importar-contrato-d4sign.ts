@@ -2,7 +2,8 @@
 
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/current-user";
-import { canCreateCliente } from "@/lib/rbac";
+import { canCreateCliente, canEditCliente } from "@/lib/rbac";
+import { requireClienteAccess } from "./guards";
 import { extractD4SignUuid, downloadD4SignDocumentPdf, D4SignError } from "@/lib/d4sign/client";
 import { extrairContratoDePdf } from "./contrato-pdf-pipeline";
 import type { ImportContratoState } from "./import-contrato-state";
@@ -11,20 +12,13 @@ const inputSchema = z.object({
   documentoD4Sign: z.string().trim().min(1, "Informe o link ou UUID do documento"),
 });
 
-export async function importarContratoD4Sign(
-  _prev: ImportContratoState,
-  formData: FormData,
-): Promise<ImportContratoState> {
+/** Baixa e interpreta o PDF do D4Sign — compartilhado pelos fluxos de novo cliente e edição de cadastro. */
+async function importarDeD4Sign(formData: FormData): Promise<ImportContratoState> {
   const parsed = inputSchema.safeParse({
     documentoD4Sign: formData.get("documentoD4Sign"),
   });
   if (!parsed.success) {
     return { ok: false, message: parsed.error.flatten().fieldErrors.documentoD4Sign?.[0] };
-  }
-
-  const usuario = await getCurrentUser();
-  if (!canCreateCliente(usuario)) {
-    return { ok: false, message: "Acesso negado." };
   }
 
   const uuid = extractD4SignUuid(parsed.data.documentoD4Sign);
@@ -43,4 +37,28 @@ export async function importarContratoD4Sign(
   }
 
   return extrairContratoDePdf(pdfBuffer);
+}
+
+export async function importarContratoD4Sign(
+  _prev: ImportContratoState,
+  formData: FormData,
+): Promise<ImportContratoState> {
+  const usuario = await getCurrentUser();
+  if (!canCreateCliente(usuario)) {
+    return { ok: false, message: "Acesso negado." };
+  }
+  return importarDeD4Sign(formData);
+}
+
+/** Mesmo fluxo de importação, mas para preencher dados cadastrais de um cliente já existente. */
+export async function importarDadosClienteD4Sign(
+  clienteId: string,
+  _prev: ImportContratoState,
+  formData: FormData,
+): Promise<ImportContratoState> {
+  const { usuario, allowed } = await requireClienteAccess(clienteId);
+  if (!allowed || !canEditCliente(usuario)) {
+    return { ok: false, message: "Acesso negado." };
+  }
+  return importarDeD4Sign(formData);
 }
