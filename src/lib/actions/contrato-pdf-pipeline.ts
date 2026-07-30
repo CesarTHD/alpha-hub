@@ -1,5 +1,6 @@
 import { extractPdfText } from "@/lib/pdf/extract-text";
 import { extractContratoFromText } from "@/lib/ai/contrato-extraction";
+import { buscarCidadeEstadoPorCep } from "@/lib/cep";
 import type { ImportContratoState } from "./import-contrato-state";
 
 /** Extrai texto de um PDF de contrato e interpreta os dados com IA. Compartilhado pelos fluxos de importação via D4Sign e via upload direto do arquivo. */
@@ -17,6 +18,15 @@ export async function extrairContratoDePdf(pdfBuffer: Buffer): Promise<ImportCon
   try {
     const data = await extractContratoFromText(text);
     if (data.documento) data.documento = data.documento.replace(/\D/g, "");
+
+    if (!data.cidade && data.cep) {
+      const localizacao = await buscarCidadeEstadoPorCep(data.cep);
+      if (localizacao) {
+        data.cidade = localizacao.cidade;
+        data.estado = localizacao.estado;
+      }
+    }
+
     return { ok: true, message: "Contrato importado. Revise os dados antes de salvar.", data };
   } catch (err) {
     console.error("[IA] Erro ao interpretar contrato:", err);

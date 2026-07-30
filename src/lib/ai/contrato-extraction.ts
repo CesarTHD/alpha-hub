@@ -11,6 +11,7 @@ export const contratoExtraidoSchema = z.object({
   telefone: z.string().nullable(),
   cidade: z.string().nullable(),
   estado: z.string().nullable(),
+  cep: z.string().nullable(),
   plano: z.string().nullable(),
   valorContrato: z.number().nullable(),
   tipoContrato: z.enum(["MENSAL", "TRIMESTRAL", "QUADRIMESTRAL", "SEMESTRAL", "ANUAL"]).nullable(),
@@ -40,6 +41,15 @@ const SYSTEM_PROMPT = `Você extrai dados estruturados de contratos da Alpha a p
 Regras:
 - Interprete o documento semanticamente. Não use suposições sobre a posição do texto no documento.
 - Nunca invente informações. Se um campo não existir claramente no contrato, retorne null para ele.
+- "nome", "documento", "email", "telefone", "cidade", "estado" e "cep" são sempre do CONTRATANTE (o
+  cliente), nunca da CONTRATADA (a Alpha) — e nunca do foro do contrato, que reflete a jurisdição
+  contratual, não o endereço do cliente.
+- "cidade" e "estado" só devem ser preenchidos se o nome da cidade/UF estiver escrito por extenso no
+  endereço do CONTRATANTE. Nunca deduza a cidade a partir do CEP ou do DDD do telefone — isso é
+  feito depois, de forma determinística, por uma consulta real ao CEP, não por você. Se o endereço só
+  tiver rua/CEP, sem cidade/UF por extenso, retorne null para os dois.
+- "cep" é o CEP do endereço do CONTRATANTE, apenas os 8 dígitos, sem hífen (ex.: "09942210"). null se
+  não houver CEP no contrato.
 - "estado" deve ser a sigla de UF com 2 letras (ex.: "SP", "RJ"), nunca o nome completo.
 - "valorContrato" é o valor total do contrato como número puro (sem "R$", sem separador de milhar, ponto como separador decimal). Não calcule MRR/valor mensal.
 - "inicioContrato" deve ser uma data no formato ISO "AAAA-MM-DD".
