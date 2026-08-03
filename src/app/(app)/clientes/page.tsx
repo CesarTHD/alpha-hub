@@ -48,12 +48,20 @@ export default async function ClientesPage({
     status?: string | string[];
     franquia?: string | string[];
     profit?: string | string[];
+    semD4Sign?: string;
   }>;
 }) {
-  const { nome, status: statusParam, franquia: franquiaParam, profit: profitParam } = await searchParams;
+  const {
+    nome,
+    status: statusParam,
+    franquia: franquiaParam,
+    profit: profitParam,
+    semD4Sign: semD4SignParam,
+  } = await searchParams;
   const status = toArray(statusParam);
   const franquia = toArray(franquiaParam);
   const profit = toArray(profitParam);
+  const semD4Sign = semD4SignParam === "1";
   const usuario = await getCurrentUser();
   await marcarContratosVencidos();
 
@@ -71,7 +79,7 @@ export default async function ClientesPage({
   });
   const PROFIT_OPTIONS = profits.map((p) => ({ value: p.id, label: p.nome }));
 
-  const where = clientesWhere(usuario, { nome: nome ?? "", status, franquia, profit });
+  const where = clientesWhere(usuario, { nome: nome ?? "", status, franquia, profit, semD4Sign });
 
   const clientesEncontrados = await db.cliente.findMany({
     where,
@@ -99,6 +107,7 @@ export default async function ClientesPage({
     status.forEach((s) => params.append("status", s));
     franquia.forEach((f) => params.append("franquia", f));
     profit.forEach((p) => params.append("profit", p));
+    if (semD4Sign) params.set("semD4Sign", "1");
     params.set("formato", formato);
     return `/clientes/export?${params.toString()}`;
   }
@@ -165,10 +174,23 @@ export default async function ClientesPage({
                 placeholder="Todos"
               />
             </div>
+            <div className="flex items-center gap-2 pb-2">
+              <input
+                type="checkbox"
+                id="semD4Sign"
+                name="semD4Sign"
+                value="1"
+                defaultChecked={semD4Sign}
+                className="h-4 w-4"
+              />
+              <label htmlFor="semD4Sign" className="text-sm text-muted-foreground">
+                Sem D4Sign cadastrado
+              </label>
+            </div>
             <Button type="submit" variant="secondary">
               Filtrar
             </Button>
-            {(nome || status.length > 0 || franquia.length > 0 || profit.length > 0) && (
+            {(nome || status.length > 0 || franquia.length > 0 || profit.length > 0 || semD4Sign) && (
               <Button asChild variant="ghost">
                 <Link href="/clientes">Limpar</Link>
               </Button>
@@ -233,7 +255,7 @@ export default async function ClientesPage({
           {clientes.length === 0 && (
             <TableRow>
               <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                {nome || status.length > 0 || franquia.length > 0 || profit.length > 0
+                {nome || status.length > 0 || franquia.length > 0 || profit.length > 0 || semD4Sign
                   ? "Nenhum cliente encontrado para esse filtro."
                   : "Nenhum cliente cadastrado ainda."}
               </TableCell>

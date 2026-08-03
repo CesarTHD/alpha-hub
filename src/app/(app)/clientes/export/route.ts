@@ -13,9 +13,10 @@ export async function GET(request: Request) {
   const status = searchParams.getAll("status");
   const franquia = searchParams.getAll("franquia");
   const profit = searchParams.getAll("profit");
+  const semD4Sign = searchParams.get("semD4Sign") === "1";
   const formato = searchParams.get("formato") === "xlsx" ? "xlsx" : "csv";
 
-  const where = clientesWhere(usuario, { nome, status, franquia, profit });
+  const where = clientesWhere(usuario, { nome, status, franquia, profit, semD4Sign });
 
   const clientesEncontrados = await db.cliente.findMany({
     where,

@@ -6,6 +6,7 @@ export type ClientesFiltros = {
   status: string[];
   franquia: string[];
   profit: string[];
+  semD4Sign: boolean;
 };
 
 export function toArray(value: string | string[] | undefined): string[] {
@@ -31,6 +32,9 @@ export function clientesWhere(usuario: AuthUser, filtros: ClientesFiltros): Pris
         },
       },
     });
+  }
+  if (filtros.semD4Sign) {
+    partes.push({ linkContratoD4Sign: null });
   }
 
   return { AND: partes };
