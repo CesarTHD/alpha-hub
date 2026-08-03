@@ -312,6 +312,7 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
               <TableHeader>
                 <TableRow>
                   <TableHead>Plano</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <TableHead>Valor mensal</TableHead>
                   <TableHead>Vigência</TableHead>
                   <TableHead>Status</TableHead>
@@ -322,6 +323,7 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
                 {cliente.contratos.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell>{c.plano}</TableCell>
+                    <TableCell>{c.tipoContrato}</TableCell>
                     <TableCell>{formatCurrency(c.valorMensal.toString())}</TableCell>
                     <TableCell>
                       {formatDate(c.inicioContrato)} – {formatDate(c.fimContrato)}
