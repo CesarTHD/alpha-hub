@@ -276,8 +276,8 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+      <div className="xl:flex gap-6 ">
+        <Card className="xl:w-1/3">
           <CardHeader>
             <CardTitle>Histórico de carteira</CardTitle>
           </CardHeader>
@@ -303,7 +303,7 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="xl:w-2/3 mt-6 xl:mt-0">
           <CardHeader>
             <CardTitle>Histórico de contratos</CardTitle>
           </CardHeader>
