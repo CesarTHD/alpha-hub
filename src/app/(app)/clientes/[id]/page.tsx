@@ -25,6 +25,8 @@ import { PausaButton, RetomadaButton } from "@/components/clientes/pausa-retomad
 import { AlterarPlanoDialog } from "@/components/clientes/alterar-plano-dialog";
 import { AlterarValorDialog } from "@/components/clientes/alterar-valor-dialog";
 import { ObservacaoDialog } from "@/components/clientes/observacao-dialog";
+import { NovoContratoDialog } from "@/components/clientes/novo-contrato-dialog";
+import { ExcluirContratoButton } from "@/components/clientes/excluir-contrato-button";
 import { EventosTimeline } from "@/components/eventos/eventos-timeline";
 import { getCurrentUser } from "@/lib/current-user";
 import {
@@ -32,6 +34,8 @@ import {
   canManageContratos,
   canRegisterEvento,
   canTransferirFranquia,
+  canCreateContratoAdicional,
+  canDeleteContrato,
   clienteFranquiaScopeWhere,
 } from "@/lib/rbac";
 import { marcarContratosVencidos } from "@/lib/contrato-lifecycle";
@@ -58,7 +62,7 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
         orderBy: { dataInicio: "desc" },
         include: { franquia: { include: { historicoProfit: { where: { ativo: true }, include: { profit: true } } } } },
       },
-      contratos: { orderBy: { inicioContrato: "desc" } },
+      contratos: { where: { deletedAt: null }, orderBy: { inicioContrato: "desc" } },
       eventos: {
         orderBy: { dataEvento: "desc" },
         include: { usuarioResponsavel: true, contrato: { select: { plano: true } } },
@@ -91,9 +95,12 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
           title={cliente.nome}
           description={cliente.documento}
           actions={
-            canRegisterEvento(usuario) ? (
-              <ObservacaoDialog clienteId={cliente.id} contratoId={contratoAtual?.id} />
-            ) : undefined
+            <div className="flex items-center gap-2">
+              {canCreateContratoAdicional(usuario) && <NovoContratoDialog clienteId={cliente.id} />}
+              {canRegisterEvento(usuario) && (
+                <ObservacaoDialog clienteId={cliente.id} contratoId={contratoAtual?.id} />
+              )}
+            </div>
           }
         />
       </div>
@@ -308,6 +315,7 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
                   <TableHead>Valor mensal</TableHead>
                   <TableHead>Vigência</TableHead>
                   <TableHead>Status</TableHead>
+                  {canDeleteContrato(usuario) && <TableHead className="text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -321,6 +329,11 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
                     <TableCell>
                       <Badge variant={statusVariant[c.status]}>{statusContratoLabel[c.status]}</Badge>
                     </TableCell>
+                    {canDeleteContrato(usuario) && (
+                      <TableCell className="text-right">
+                        <ExcluirContratoButton clienteId={cliente.id} contratoId={c.id} plano={c.plano} />
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

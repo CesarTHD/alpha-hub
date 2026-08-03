@@ -92,7 +92,7 @@ export default async function ClientesPage({
           franquia: { include: { historicoProfit: { where: { ativo: true }, include: { profit: true } } } },
         },
       },
-      contratos: { orderBy: { inicioContrato: "desc" }, take: 1 },
+      contratos: { where: { deletedAt: null }, orderBy: { inicioContrato: "desc" }, take: 1 },
     },
   });
 

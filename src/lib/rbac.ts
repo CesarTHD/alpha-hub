@@ -35,6 +35,11 @@ export const canDeleteCliente = (u: AuthUser) => isAdminOrCEO(u);
 export const canManageContratos = (u: AuthUser) =>
   isAdminOrCEO(u) || isProfit(u) || isFranqueado(u);
 
+/** Excluir um contrato e cadastrar um contrato adicional para um cliente já
+ *  existente são exclusivos do ADMIN, mesmo o CEO não acessa. */
+export const canDeleteContrato = (u: AuthUser) => isAdmin(u);
+export const canCreateContratoAdicional = (u: AuthUser) => isAdmin(u);
+
 /** Mover um cliente entre franquias é uma decisão acima do escopo de
  *  FRANQUEADO/OPERACIONAL, que só enxergam a própria franquia. */
 export const canTransferirFranquia = (u: AuthUser) => isAdminOrCEO(u) || isProfit(u);

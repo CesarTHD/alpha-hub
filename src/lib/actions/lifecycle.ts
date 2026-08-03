@@ -3,7 +3,13 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { canManageContratos, canRegisterEvento, canTransferirFranquia } from "@/lib/rbac";
+import {
+  canManageContratos,
+  canRegisterEvento,
+  canTransferirFranquia,
+  canCreateContratoAdicional,
+  canDeleteContrato,
+} from "@/lib/rbac";
 import { calcularFimContrato } from "@/lib/contrato-lifecycle";
 import type { ActionState } from "./action-state";
 import { optionalText } from "./zod-helpers";
@@ -253,6 +259,100 @@ export async function registrarEncerramento(_prev: ActionState, formData: FormDa
 
   revalidateCliente(parsed.data.clienteId);
   return { ok: true, message: "Contrato encerrado." };
+}
+
+// ---------------------------------------------------------------------------
+// Novo contrato adicional (cliente já existente) — exclusivo do ADMIN
+// ---------------------------------------------------------------------------
+
+const novoContratoAdicionalSchema = z.object({
+  clienteId: z.string().min(1),
+  plano: z.string().trim().min(1, "Informe o plano"),
+  tipoContrato: z.enum(["MENSAL", "TRIMESTRAL", "QUADRIMESTRAL", "SEMESTRAL", "ANUAL"]),
+  valorContrato: z.coerce.number().positive("Informe o valor total"),
+  valorMensal: z.coerce.number().positive("Informe o valor mensal"),
+  inicioContrato: z.string().min(1, "Informe a data de início"),
+  renovacaoAutomatica: z.coerce.boolean().optional(),
+});
+
+export async function criarNovoContrato(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = novoContratoAdicionalSchema.safeParse({
+    clienteId: formData.get("clienteId"),
+    plano: formData.get("plano"),
+    tipoContrato: formData.get("tipoContrato"),
+    valorContrato: formData.get("valorContrato"),
+    valorMensal: formData.get("valorMensal"),
+    inicioContrato: formData.get("inicioContrato"),
+    renovacaoAutomatica: formData.get("renovacaoAutomatica") === "on",
+  });
+  if (!parsed.success) return { ok: false, fieldErrors: parsed.error.flatten().fieldErrors };
+
+  const { usuario, allowed } = await requireClienteAccess(parsed.data.clienteId);
+  if (!allowed || !canCreateContratoAdicional(usuario)) return { ok: false, message: "Acesso negado." };
+  const inicio = new Date(parsed.data.inicioContrato);
+
+  await db.$transaction(async (tx) => {
+    const contrato = await tx.contrato.create({
+      data: {
+        clienteId: parsed.data.clienteId,
+        plano: parsed.data.plano,
+        tipoContrato: parsed.data.tipoContrato,
+        valorContrato: parsed.data.valorContrato,
+        valorMensal: parsed.data.valorMensal,
+        inicioContrato: inicio,
+        fimContrato: calcularFimContrato(inicio, parsed.data.tipoContrato),
+        renovacaoAutomatica: parsed.data.renovacaoAutomatica ?? false,
+        status: "ATIVO",
+      },
+    });
+
+    await tx.evento.create({
+      data: {
+        clienteId: parsed.data.clienteId,
+        contratoId: contrato.id,
+        tipoEvento: "NOVO_CONTRATO",
+        dataEvento: inicio,
+        usuarioResponsavelId: usuario.id,
+      },
+    });
+  });
+
+  revalidateCliente(parsed.data.clienteId);
+  return { ok: true, message: "Contrato criado." };
+}
+
+// ---------------------------------------------------------------------------
+// Exclusão de contrato (soft delete) — exclusivo do ADMIN
+// ---------------------------------------------------------------------------
+
+const excluirContratoSchema = z.object({
+  clienteId: z.string().min(1),
+  contratoId: z.string().min(1),
+});
+
+export async function excluirContrato(clienteId: string, contratoId: string) {
+  const parsed = excluirContratoSchema.safeParse({ clienteId, contratoId });
+  if (!parsed.success) return { ok: false, message: "Dados inválidos." };
+
+  const { usuario, allowed } = await requireClienteAccess(parsed.data.clienteId);
+  if (!allowed || !canDeleteContrato(usuario)) return { ok: false, message: "Acesso negado." };
+  const agora = new Date();
+
+  await db.$transaction(async (tx) => {
+    await tx.contrato.update({ where: { id: parsed.data.contratoId }, data: { deletedAt: agora } });
+    await tx.evento.create({
+      data: {
+        clienteId: parsed.data.clienteId,
+        contratoId: parsed.data.contratoId,
+        tipoEvento: "EXCLUSAO_CONTRATO",
+        dataEvento: agora,
+        usuarioResponsavelId: usuario.id,
+      },
+    });
+  });
+
+  revalidateCliente(parsed.data.clienteId);
+  return { ok: true, message: "Contrato excluído." };
 }
 
 // ---------------------------------------------------------------------------

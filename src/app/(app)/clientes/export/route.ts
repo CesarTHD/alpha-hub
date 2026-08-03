@@ -29,7 +29,7 @@ export async function GET(request: Request) {
           franquia: { include: { historicoProfit: { where: { ativo: true }, include: { profit: true } } } },
         },
       },
-      contratos: { orderBy: { inicioContrato: "desc" } },
+      contratos: { where: { deletedAt: null }, orderBy: { inicioContrato: "desc" } },
     },
   });
 

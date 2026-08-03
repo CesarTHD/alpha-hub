@@ -40,22 +40,22 @@ export async function getDashboardData(scope: DashboardScope = null) {
   // cross-contaminate result rows under Prisma 7.9 + @prisma/adapter-pg
   // against `prisma dev`'s local proxy.
   const clientesAtivosRows = await db.contrato.findMany({
-    where: { status: "ATIVO", ...contratoScope },
+    where: { status: "ATIVO", deletedAt: null, ...contratoScope },
     distinct: ["clienteId"],
     select: { clienteId: true, tipoContrato: true },
   });
   const clientesPausadosRows = await db.contrato.findMany({
-    where: { status: "PAUSADO", ...contratoScope },
+    where: { status: "PAUSADO", deletedAt: null, ...contratoScope },
     distinct: ["clienteId"],
     select: { clienteId: true, tipoContrato: true },
   });
   const clientesChurnRows = await db.contrato.findMany({
-    where: { status: "CHURN", ...contratoScope },
+    where: { status: "CHURN", deletedAt: null, ...contratoScope },
     distinct: ["clienteId"],
     select: { clienteId: true, tipoContrato: true },
   });
   const contratosAtivos = await db.contrato.findMany({
-    where: { status: "ATIVO", ...contratoScope },
+    where: { status: "ATIVO", deletedAt: null, ...contratoScope },
     select: {
       clienteId: true,
       tipoContrato: true,
@@ -76,6 +76,7 @@ export async function getDashboardData(scope: DashboardScope = null) {
       id: true,
       createdAt: true,
       contratos: {
+        where: { deletedAt: null },
         select: { inicioContrato: true, status: true, dataSaida: true, fimContrato: true, tipoContrato: true },
       },
       eventos: { where: { tipoEvento: "RENOVACAO" }, select: { dataEvento: true } },

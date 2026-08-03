@@ -23,7 +23,7 @@ export async function calcularChurnPorFranquia(): Promise<Map<string, ChurnFranq
   });
 
   const clientesChurnRows = await db.contrato.findMany({
-    where: { status: "CHURN" },
+    where: { status: "CHURN", deletedAt: null },
     distinct: ["clienteId"],
     select: { clienteId: true },
   });
