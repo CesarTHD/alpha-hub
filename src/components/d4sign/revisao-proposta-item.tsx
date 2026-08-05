@@ -31,6 +31,8 @@ type Proposta = {
   nomeDocumento: string;
   confianca: string;
   uuidDocumento: string;
+  franquiaNome: string | null;
+  profitNome: string | null;
 };
 
 type CamposForm = {
@@ -120,6 +122,9 @@ export function RevisaoPropostaItem({
           <Link href={`/clientes/${proposta.clienteId}`} className="font-medium hover:underline" target="_blank">
             {proposta.clienteNome}
           </Link>
+          <p className="text-sm text-muted-foreground">
+            {proposta.franquiaNome ?? "Sem franquia"} · Profit: {proposta.profitNome ?? "sem responsável"}
+          </p>
           <p className="text-sm text-muted-foreground">Candidato original (match automático): {proposta.nomeDocumento}</p>
         </div>
         <Badge variant={proposta.confianca === "ALTA" ? "default" : "outline"}>

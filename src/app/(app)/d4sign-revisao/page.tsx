@@ -13,7 +13,20 @@ export default async function D4SignRevisaoPage() {
 
   const propostas = await db.propostaD4Sign.findMany({
     where: { status: "PENDENTE" },
-    include: { cliente: { select: { nome: true } } },
+    include: {
+      cliente: {
+        select: {
+          nome: true,
+          carteiraHistorico: {
+            where: { ativo: true },
+            take: 1,
+            include: {
+              franquia: { include: { historicoProfit: { where: { ativo: true }, include: { profit: true } } } },
+            },
+          },
+        },
+      },
+    },
     orderBy: { createdAt: "asc" },
   });
 
@@ -55,6 +68,8 @@ export default async function D4SignRevisaoPage() {
               nomeDocumento: p.nomeDocumento,
               confianca: p.confianca,
               uuidDocumento: p.uuidDocumento,
+              franquiaNome: p.cliente.carteiraHistorico[0]?.franquia.nome ?? null,
+              profitNome: p.cliente.carteiraHistorico[0]?.franquia.historicoProfit[0]?.profit.nome ?? null,
             }}
             segmentoOptions={segmentoOptions}
           />
