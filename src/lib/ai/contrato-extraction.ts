@@ -48,6 +48,11 @@ Regras:
   da filial + 2 dígitos verificadores (ex.: "58.422.191/0001-60" -> "58422191000160"). Nunca devolva
   só a raiz do CNPJ (8 dígitos) — se o contrato mostrar o CNPJ pontuado ou não, transcreva o número
   completo como está escrito, incluindo a parte "/0001-XX" (ou outra filial) no final.
+- É comum o CONTRATANTE aparecer como "Nome da Pessoa Física CPF / Nome Fantasia, CNPJ: XXX" (ex.:
+  "BERNARDO JHONNE SOUZA REIS 02313290670 / BOCA NEGRA, CNPJ: 47878357000130") — nesse caso
+  "documento" deve ser o CNPJ (47878357000130), NUNCA o CPF da pessoa física que aparece logo após o
+  nome. Dê sempre preferência ao CNPJ do negócio; só use o CPF se o contrato realmente não mencionar
+  nenhum CNPJ para o CONTRATANTE.
 - "cidade" e "estado" só devem ser preenchidos se o nome da cidade/UF estiver escrito por extenso no
   endereço do CONTRATANTE. Nunca deduza a cidade a partir do CEP ou do DDD do telefone — isso é
   feito depois, de forma determinística, por uma consulta real ao CEP, não por você. Se o endereço só
