@@ -40,6 +40,9 @@ export const canManageContratos = (u: AuthUser) =>
 export const canDeleteContrato = (u: AuthUser) => isAdmin(u);
 export const canCreateContratoAdicional = (u: AuthUser) => isAdmin(u);
 
+/** Revisão das propostas de match automático com o D4Sign — exclusivo do ADMIN. */
+export const canReviewD4Sign = (u: AuthUser) => isAdmin(u);
+
 /** Mover um cliente entre franquias é uma decisão acima do escopo de
  *  FRANQUEADO/OPERACIONAL, que só enxergam a própria franquia. */
 export const canTransferirFranquia = (u: AuthUser) => isAdminOrCEO(u) || isProfit(u);

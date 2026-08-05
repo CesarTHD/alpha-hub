@@ -5,6 +5,7 @@ import {
   UserCog,
   ScrollText,
   ShieldCheck,
+  FileSearch,
 } from "lucide-react";
 import type { Role } from "@/generated/prisma/client";
 
@@ -38,4 +39,5 @@ export const navLinks: NavLink[] = [
   },
   { href: "/eventos", label: "Eventos", icon: ScrollText },
   { href: "/usuarios", label: "Usuários", icon: ShieldCheck, roles: ["ADMIN"] },
+  { href: "/d4sign-revisao", label: "Revisão D4Sign", icon: FileSearch, roles: ["ADMIN"] },
 ];

@@ -3,6 +3,66 @@ export class D4SignError extends Error {}
 type D4SignDownloadLinkResponse = { url?: string; name?: string; message?: string };
 type D4SignApiErrorBody = { status?: boolean; error?: string; message?: string };
 
+export type D4SignDocumentoResumo = {
+  uuidDoc: string;
+  nameDoc: string;
+  statusId: string;
+  statusName: string;
+};
+
+type D4SignListPageMeta = {
+  total_documents: number;
+  total_in_this_page: number;
+  current_page: number;
+  total_pages: number;
+};
+
+/**
+ * Lista todos os documentos da conta D4Sign (paginado, 500 por página — ver
+ * `GET /documents`). Diferente de `downloadD4SignDocumentPdf`, que baixa o
+ * conteúdo de UM documento: aqui é só metadado (nome, status), então dá pra
+ * varrer a conta inteira em poucas chamadas — não uma por cliente.
+ */
+export async function listarTodosDocumentosD4Sign(): Promise<D4SignDocumentoResumo[]> {
+  const tokenAPI = process.env.D4SIGN_API_TOKEN;
+  const cryptKey = process.env.D4SIGN_CRYPT_KEY;
+  const baseUrl = process.env.D4SIGN_BASE_URL || "https://secure.d4sign.com.br/api/v1";
+
+  if (!tokenAPI || !cryptKey) {
+    throw new D4SignError("Integração com D4Sign não configurada.");
+  }
+
+  const documentos: D4SignDocumentoResumo[] = [];
+  let pagina = 1;
+  let totalPaginas = 1;
+
+  do {
+    const url = `${baseUrl}/documents?tokenAPI=${encodeURIComponent(tokenAPI)}&cryptKey=${encodeURIComponent(cryptKey)}&pg=${pagina}`;
+    let response: Response;
+    try {
+      response = await fetch(url);
+    } catch {
+      throw new D4SignError("Erro ao conectar com o D4Sign.");
+    }
+    if (!response.ok) {
+      const detail = await readD4SignErrorDetail(response);
+      throw new D4SignError(
+        detail
+          ? `Erro ao listar documentos do D4Sign (página ${pagina}): ${detail}`
+          : `Erro ao listar documentos do D4Sign (página ${pagina}).`,
+      );
+    }
+
+    const body = (await response.json()) as [D4SignListPageMeta, ...D4SignDocumentoResumo[]];
+    const [meta, ...docs] = body;
+    documentos.push(...docs);
+    totalPaginas = meta.total_pages;
+    pagina++;
+  } while (pagina <= totalPaginas);
+
+  return documentos;
+}
+
 /** Lê a mensagem de erro do D4Sign do corpo da resposta, quando houver (`{status:false, error:"..."}`). */
 async function readD4SignErrorDetail(response: Response): Promise<string | null> {
   try {

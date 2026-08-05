@@ -34,11 +34,12 @@ model Usuario {
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
 
-  franquia            Franquia?   @relation(fields: [franquiaId], references: [id])
-  clientesCriados     Cliente[]   @relation("ClienteCreatedBy")
-  clientesAtualizados Cliente[]   @relation("ClienteUpdatedBy")
-  eventosResponsavel  Evento[]    @relation("EventoUsuarioResponsavel")
-  auditorias          Auditoria[]
+  franquia                 Franquia?        @relation(fields: [franquiaId], references: [id])
+  clientesCriados          Cliente[]        @relation("ClienteCreatedBy")
+  clientesAtualizados      Cliente[]        @relation("ClienteUpdatedBy")
+  eventosResponsavel       Evento[]         @relation("EventoUsuarioResponsavel")
+  auditorias               Auditoria[]
+  propostasD4SignRevisadas PropostaD4Sign[] @relation("PropostaD4SignRevisadaPor")
 
   @@index([franquiaId])
   @@map("usuarios")
@@ -131,6 +132,7 @@ model Cliente {
   carteiraHistorico ClienteCarteira[]
   contratos         Contrato[]
   eventos           Evento[]
+  propostasD4Sign   PropostaD4Sign[]
 
   @@map("clientes")
 }
@@ -260,6 +262,38 @@ model Auditoria {
 
   @@index([tabela, registroId])
   @@map("auditoria")
+}
+
+// ---------------------------------------------------------------------------
+// Proposta de match automático com documentos do D4Sign — nunca altera
+// Cliente/Contrato diretamente; só existe para ser revisada e confirmada
+// manualmente por um Administrador na tela de revisão D4Sign.
+// ---------------------------------------------------------------------------
+
+enum StatusPropostaD4Sign {
+  PENDENTE
+  APLICADA
+  REJEITADA
+}
+
+model PropostaD4Sign {
+  id            String               @id @default(cuid())
+  clienteId     String               @map("cliente_id")
+  uuidDocumento String               @map("uuid_documento")
+  nomeDocumento String               @map("nome_documento")
+  /// "ALTA" (candidato único) ou "MEDIA" (mais de um candidato no D4Sign).
+  confianca     String
+  status        StatusPropostaD4Sign @default(PENDENTE)
+  createdAt     DateTime             @default(now()) @map("created_at")
+  revisadoEm    DateTime?            @map("revisado_em")
+  revisadoPorId String?              @map("revisado_por")
+
+  cliente     Cliente  @relation(fields: [clienteId], references: [id])
+  revisadoPor Usuario? @relation("PropostaD4SignRevisadaPor", fields: [revisadoPorId], references: [id])
+
+  @@unique([clienteId, uuidDocumento])
+  @@index([status])
+  @@map("propostas_d4sign")
 }
 
 // ---------------------------------------------------------------------------
