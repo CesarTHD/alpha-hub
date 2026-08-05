@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { normalizarDocumento } from "@/lib/cnpj";
 import { buildD4SignViewLink, extractD4SignUuid } from "@/lib/d4sign/link";
 import {
@@ -35,10 +42,19 @@ type CamposForm = {
   segmento: string;
 };
 
-export function RevisaoPropostaItem({ proposta }: { proposta: Proposta }) {
+const SEGMENTO_OUTRO = "__outro__";
+
+export function RevisaoPropostaItem({
+  proposta,
+  segmentoOptions,
+}: {
+  proposta: Proposta;
+  segmentoOptions: string[];
+}) {
   const [linkDocumento, setLinkDocumento] = useState(buildD4SignViewLink(proposta.uuidDocumento));
   const [analise, setAnalise] = useState<AnaliseProposta | null>(null);
   const [campos, setCampos] = useState<CamposForm | null>(null);
+  const [segmentoOutro, setSegmentoOutro] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [resolvido, setResolvido] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -51,6 +67,7 @@ export function RevisaoPropostaItem({ proposta }: { proposta: Proposta }) {
       const result = await analisarPropostaD4Sign(proposta.id, linkDocumento);
       if (result.ok) {
         const { extraido, atual } = result.data;
+        const segmentoAtual = atual.segmento ?? "";
         setAnalise(result.data);
         setCampos({
           documento: extraido.documento ? normalizarDocumento(extraido.documento).documento : atual.documento,
@@ -58,8 +75,9 @@ export function RevisaoPropostaItem({ proposta }: { proposta: Proposta }) {
           telefone: extraido.telefone ?? atual.telefone ?? "",
           cidade: extraido.cidade ?? atual.cidade ?? "",
           estado: (extraido.estado ? extraido.estado.slice(0, 2).toUpperCase() : atual.estado) ?? "",
-          segmento: atual.segmento ?? "",
+          segmento: segmentoAtual,
         });
+        setSegmentoOutro(segmentoAtual !== "" && !segmentoOptions.includes(segmentoAtual));
       } else {
         setAnalise(null);
         setCampos(null);
@@ -179,12 +197,38 @@ export function RevisaoPropostaItem({ proposta }: { proposta: Proposta }) {
             </div>
             <div className="space-y-1">
               <Label htmlFor={`segmento-${proposta.id}`}>Segmento</Label>
-              <Input
-                id={`segmento-${proposta.id}`}
-                placeholder="Ex.: Pizzaria, Restaurante..."
-                value={campos.segmento}
-                onChange={(e) => setCampos({ ...campos, segmento: e.target.value })}
-              />
+              <Select
+                value={segmentoOutro ? SEGMENTO_OUTRO : campos.segmento || undefined}
+                onValueChange={(valor) => {
+                  if (valor === SEGMENTO_OUTRO) {
+                    setSegmentoOutro(true);
+                    setCampos({ ...campos, segmento: "" });
+                  } else {
+                    setSegmentoOutro(false);
+                    setCampos({ ...campos, segmento: valor });
+                  }
+                }}
+              >
+                <SelectTrigger id={`segmento-${proposta.id}`} className="w-full">
+                  <SelectValue placeholder="Selecione o segmento" />
+                </SelectTrigger>
+                <SelectContent>
+                  {segmentoOptions.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={SEGMENTO_OUTRO}>Outro...</SelectItem>
+                </SelectContent>
+              </Select>
+              {segmentoOutro && (
+                <Input
+                  placeholder="Digite o segmento"
+                  value={campos.segmento}
+                  onChange={(e) => setCampos({ ...campos, segmento: e.target.value })}
+                  className="mt-1"
+                />
+              )}
             </div>
             <div className="space-y-1">
               <Label htmlFor={`cidade-${proposta.id}`}>Cidade</Label>

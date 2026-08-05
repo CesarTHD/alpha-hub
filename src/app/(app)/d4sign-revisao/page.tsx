@@ -23,6 +23,16 @@ export default async function D4SignRevisaoPage() {
     return a.confianca === "ALTA" ? -1 : 1;
   });
 
+  const segmentosCadastrados = await db.cliente.findMany({
+    where: { deletedAt: null, segmento: { not: null } },
+    select: { segmento: true },
+    distinct: ["segmento"],
+    orderBy: { segmento: "asc" },
+  });
+  const segmentoOptions = segmentosCadastrados
+    .map((c) => c.segmento!.trim())
+    .filter((s) => s.length > 0);
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -46,6 +56,7 @@ export default async function D4SignRevisaoPage() {
               confianca: p.confianca,
               uuidDocumento: p.uuidDocumento,
             }}
+            segmentoOptions={segmentoOptions}
           />
         ))}
         {ordenadas.length === 0 && (
