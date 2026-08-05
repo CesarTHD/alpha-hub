@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { normalizarDocumento } from "@/lib/cnpj";
+import { buildD4SignViewLink, extractD4SignUuid } from "@/lib/d4sign/link";
 import {
   analisarPropostaD4Sign,
   aplicarPropostaD4Sign,
@@ -22,6 +23,7 @@ type Proposta = {
   clienteNome: string;
   nomeDocumento: string;
   confianca: string;
+  uuidDocumento: string;
 };
 
 type CamposForm = {
@@ -34,16 +36,19 @@ type CamposForm = {
 };
 
 export function RevisaoPropostaItem({ proposta }: { proposta: Proposta }) {
+  const [linkDocumento, setLinkDocumento] = useState(buildD4SignViewLink(proposta.uuidDocumento));
   const [analise, setAnalise] = useState<AnaliseProposta | null>(null);
   const [campos, setCampos] = useState<CamposForm | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [resolvido, setResolvido] = useState(false);
   const [pending, startTransition] = useTransition();
 
+  const uuidValido = extractD4SignUuid(linkDocumento);
+
   function handleAnalisar() {
     setErro(null);
     startTransition(async () => {
-      const result = await analisarPropostaD4Sign(proposta.id);
+      const result = await analisarPropostaD4Sign(proposta.id, linkDocumento);
       if (result.ok) {
         const { extraido, atual } = result.data;
         setAnalise(result.data);
@@ -56,15 +61,17 @@ export function RevisaoPropostaItem({ proposta }: { proposta: Proposta }) {
           segmento: atual.segmento ?? "",
         });
       } else {
+        setAnalise(null);
+        setCampos(null);
         setErro(result.message);
       }
     });
   }
 
   function handleAplicar() {
-    if (!campos) return;
+    if (!campos || !analise) return;
     startTransition(async () => {
-      const result = await aplicarPropostaD4Sign(proposta.id, campos);
+      const result = await aplicarPropostaD4Sign(proposta.id, analise.uuidDocumento, campos);
       if (result.ok) {
         toast.success(result.message ?? "Dados aplicados.");
         setResolvido(true);
@@ -95,26 +102,48 @@ export function RevisaoPropostaItem({ proposta }: { proposta: Proposta }) {
           <Link href={`/clientes/${proposta.clienteId}`} className="font-medium hover:underline" target="_blank">
             {proposta.clienteNome}
           </Link>
-          <p className="text-sm text-muted-foreground">Candidato no D4Sign: {proposta.nomeDocumento}</p>
+          <p className="text-sm text-muted-foreground">Candidato original (match automático): {proposta.nomeDocumento}</p>
         </div>
         <Badge variant={proposta.confianca === "ALTA" ? "default" : "outline"}>
           Confiança {proposta.confianca === "ALTA" ? "alta" : "média"}
         </Badge>
       </div>
 
+      <div className="space-y-1">
+        <Label htmlFor={`link-${proposta.id}`}>Link ou UUID do documento no D4Sign</Label>
+        <div className="flex gap-2">
+          <Input
+            id={`link-${proposta.id}`}
+            value={linkDocumento}
+            onChange={(e) => setLinkDocumento(e.target.value)}
+            disabled={pending}
+          />
+          {uuidValido && (
+            <Button asChild variant="outline" size="sm">
+              <a href={buildD4SignViewLink(uuidValido)} target="_blank" rel="noopener noreferrer">
+                Ver
+              </a>
+            </Button>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Errou o candidato? Cole aqui o link/UUID certo e busque de novo antes de aplicar.
+        </p>
+      </div>
+
       {erro && <p className="text-sm text-destructive">{erro}</p>}
 
-      {!campos && (
-        <div className="flex gap-2">
-          <Button size="sm" variant="secondary" onClick={handleAnalisar} disabled={pending}>
-            {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {pending ? "Buscando..." : "Buscar e comparar dados"}
-          </Button>
+      <div className="flex gap-2">
+        <Button size="sm" variant="secondary" onClick={handleAnalisar} disabled={pending || !uuidValido}>
+          {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {pending ? "Buscando..." : campos ? "Buscar novamente" : "Buscar e comparar dados"}
+        </Button>
+        {!campos && (
           <Button size="sm" variant="ghost" onClick={handleRejeitar} disabled={pending}>
             Rejeitar sem analisar
           </Button>
-        </div>
-      )}
+        )}
+      </div>
 
       {campos && analise && (
         <div className="space-y-4">

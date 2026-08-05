@@ -44,6 +44,7 @@ export default async function D4SignRevisaoPage() {
               clienteNome: p.cliente.nome,
               nomeDocumento: p.nomeDocumento,
               confianca: p.confianca,
+              uuidDocumento: p.uuidDocumento,
             }}
           />
         ))}

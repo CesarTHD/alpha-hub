@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/current-user";
 import { canReviewD4Sign } from "@/lib/rbac";
 import { downloadD4SignDocumentPdf, D4SignError } from "@/lib/d4sign/client";
-import { buildD4SignViewLink } from "@/lib/d4sign/link";
+import { buildD4SignViewLink, extractD4SignUuid } from "@/lib/d4sign/link";
 import { normalizarDocumento } from "@/lib/cnpj";
 import { extrairContratoDePdf } from "./contrato-pdf-pipeline";
 import { compararContrato, type Inconsistencia } from "@/lib/contrato-comparacao";
@@ -21,6 +21,7 @@ export type CadastroAtual = {
 };
 
 export type AnaliseProposta = {
+  uuidDocumento: string;
   extraido: ContratoExtraido;
   atual: CadastroAtual;
   diffContrato: Inconsistencia[];
@@ -28,11 +29,16 @@ export type AnaliseProposta = {
 
 export type AnaliseResult = { ok: true; data: AnaliseProposta } | { ok: false; message: string };
 
-/** Baixa e interpreta o documento candidato, comparando com o que já está
- * cadastrado — não altera nada em clientes/contratos, só monta o diff pra revisão. */
-export async function analisarPropostaD4Sign(propostaId: string): Promise<AnaliseResult> {
+/** Baixa e interpreta o documento indicado por `linkOuUuid` (o candidato do match
+ * automático por padrão, mas o admin pode trocar por outro link/UUID antes de
+ * buscar de novo) e compara com o que já está cadastrado — não altera nada em
+ * clientes/contratos, só monta o diff pra revisão. */
+export async function analisarPropostaD4Sign(propostaId: string, linkOuUuid: string): Promise<AnaliseResult> {
   const usuario = await getCurrentUser();
   if (!canReviewD4Sign(usuario)) return { ok: false, message: "Acesso negado." };
+
+  const uuid = extractD4SignUuid(linkOuUuid);
+  if (!uuid) return { ok: false, message: "Link ou UUID do D4Sign inválido." };
 
   const proposta = await db.propostaD4Sign.findUnique({
     where: { id: propostaId },
@@ -49,7 +55,7 @@ export async function analisarPropostaD4Sign(propostaId: string): Promise<Analis
 
   let pdfBuffer: Buffer;
   try {
-    pdfBuffer = await downloadD4SignDocumentPdf(proposta.uuidDocumento);
+    pdfBuffer = await downloadD4SignDocumentPdf(uuid);
   } catch (err) {
     return { ok: false, message: err instanceof D4SignError ? err.message : "Erro ao baixar o documento do D4Sign." };
   }
@@ -78,6 +84,7 @@ export async function analisarPropostaD4Sign(propostaId: string): Promise<Analis
   return {
     ok: true,
     data: {
+      uuidDocumento: uuid,
       extraido: resultado.data,
       atual: {
         documento: cliente.documento,
@@ -105,9 +112,12 @@ export type CamposCadastrais = {
  * admin na tela — ao cliente, e salva o link do D4Sign. Nunca mexe em plano/valor
  * de contrato: isso continua exigindo as ações dedicadas (Alterar plano/valor),
  * pra manter o rastro de auditoria certo. */
-export async function aplicarPropostaD4Sign(propostaId: string, campos: CamposCadastrais) {
+export async function aplicarPropostaD4Sign(propostaId: string, linkOuUuid: string, campos: CamposCadastrais) {
   const usuario = await getCurrentUser();
   if (!canReviewD4Sign(usuario)) return { ok: false, message: "Acesso negado." };
+
+  const uuid = extractD4SignUuid(linkOuUuid);
+  if (!uuid) return { ok: false, message: "Link ou UUID do D4Sign inválido." };
 
   const proposta = await db.propostaD4Sign.findUnique({ where: { id: propostaId } });
   if (!proposta) return { ok: false, message: "Proposta não encontrada." };
@@ -127,13 +137,15 @@ export async function aplicarPropostaD4Sign(propostaId: string, campos: CamposCa
           cidade: campos.cidade.trim() || null,
           estado: campos.estado.trim() ? campos.estado.trim().slice(0, 2).toUpperCase() : null,
           segmento: campos.segmento.trim() || null,
-          linkContratoD4Sign: buildD4SignViewLink(proposta.uuidDocumento),
+          linkContratoD4Sign: buildD4SignViewLink(uuid),
           updatedById: usuario.id,
         },
       });
       await tx.propostaD4Sign.update({
         where: { id: propostaId },
-        data: { status: "APLICADA", revisadoEm: new Date(), revisadoPorId: usuario.id },
+        // Se o admin trocou o link/UUID antes de aplicar, a proposta passa a
+        // refletir o documento realmente usado, não mais o candidato original.
+        data: { status: "APLICADA", uuidDocumento: uuid, revisadoEm: new Date(), revisadoPorId: usuario.id },
       });
     });
   } catch (err) {
