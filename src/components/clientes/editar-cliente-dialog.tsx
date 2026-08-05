@@ -23,6 +23,7 @@ import { useServerAction } from "@/hooks/use-server-action";
 import type { ContratoExtraido } from "@/lib/ai/contrato-extraction";
 import { normalizeD4SignLink } from "@/lib/d4sign/link";
 import { compararContrato, type ContratoAtual, type Inconsistencia } from "@/lib/contrato-comparacao";
+import { normalizarDocumento } from "@/lib/cnpj";
 
 type Cliente = {
   id: string;
@@ -61,7 +62,7 @@ export function EditarClienteDialog({
 
   function handleContratoImportado(data: ContratoExtraido, link: string | null) {
     const { documento: doc, email: e, telefone: t, cidade: c, estado: uf } = data;
-    if (doc) setDocumento(doc);
+    if (doc) setDocumento(normalizarDocumento(doc).documento);
     if (e) setEmail(e);
     if (t) setTelefone(t);
     if (c) setCidade(c);

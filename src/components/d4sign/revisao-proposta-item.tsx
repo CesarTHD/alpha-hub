@@ -6,6 +6,9 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { normalizarDocumento } from "@/lib/cnpj";
 import {
   analisarPropostaD4Sign,
   aplicarPropostaD4Sign,
@@ -21,8 +24,18 @@ type Proposta = {
   confianca: string;
 };
 
+type CamposForm = {
+  documento: string;
+  email: string;
+  telefone: string;
+  cidade: string;
+  estado: string;
+  segmento: string;
+};
+
 export function RevisaoPropostaItem({ proposta }: { proposta: Proposta }) {
   const [analise, setAnalise] = useState<AnaliseProposta | null>(null);
+  const [campos, setCampos] = useState<CamposForm | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [resolvido, setResolvido] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -31,15 +44,27 @@ export function RevisaoPropostaItem({ proposta }: { proposta: Proposta }) {
     setErro(null);
     startTransition(async () => {
       const result = await analisarPropostaD4Sign(proposta.id);
-      if (result.ok) setAnalise(result.data);
-      else setErro(result.message);
+      if (result.ok) {
+        const { extraido, atual } = result.data;
+        setAnalise(result.data);
+        setCampos({
+          documento: extraido.documento ? normalizarDocumento(extraido.documento).documento : atual.documento,
+          email: extraido.email ?? atual.email ?? "",
+          telefone: extraido.telefone ?? atual.telefone ?? "",
+          cidade: extraido.cidade ?? atual.cidade ?? "",
+          estado: (extraido.estado ? extraido.estado.slice(0, 2).toUpperCase() : atual.estado) ?? "",
+          segmento: atual.segmento ?? "",
+        });
+      } else {
+        setErro(result.message);
+      }
     });
   }
 
   function handleAplicar() {
-    if (!analise) return;
+    if (!campos) return;
     startTransition(async () => {
-      const result = await aplicarPropostaD4Sign(proposta.id, analise.extraido);
+      const result = await aplicarPropostaD4Sign(proposta.id, campos);
       if (result.ok) {
         toast.success(result.message ?? "Dados aplicados.");
         setResolvido(true);
@@ -79,7 +104,7 @@ export function RevisaoPropostaItem({ proposta }: { proposta: Proposta }) {
 
       {erro && <p className="text-sm text-destructive">{erro}</p>}
 
-      {!analise && (
+      {!campos && (
         <div className="flex gap-2">
           <Button size="sm" variant="secondary" onClick={handleAnalisar} disabled={pending}>
             {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -91,27 +116,66 @@ export function RevisaoPropostaItem({ proposta }: { proposta: Proposta }) {
         </div>
       )}
 
-      {analise && (
-        <div className="space-y-3">
-          {analise.diffCadastral.length === 0 && analise.diffContrato.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma divergência encontrada — os dados extraídos já batem com o cadastro.
-            </p>
-          )}
+      {campos && analise && (
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Dados vindos do contrato assinado — revise e ajuste o que precisar antes de aplicar.
+          </p>
 
-          {analise.diffCadastral.length > 0 && (
-            <div className="space-y-1 text-sm">
-              <p className="font-medium">Dados cadastrais propostos:</p>
-              <ul className="list-disc space-y-0.5 pl-4">
-                {analise.diffCadastral.map((d) => (
-                  <li key={d.campo}>
-                    <span className="font-medium">{d.campo}:</span> atual <strong>{d.cadastrado}</strong> → proposto{" "}
-                    <strong>{d.contrato}</strong>
-                  </li>
-                ))}
-              </ul>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor={`documento-${proposta.id}`}>CPF/CNPJ</Label>
+              <Input
+                id={`documento-${proposta.id}`}
+                value={campos.documento}
+                onChange={(e) => setCampos({ ...campos, documento: e.target.value })}
+              />
             </div>
-          )}
+            <div className="space-y-1">
+              <Label htmlFor={`email-${proposta.id}`}>E-mail</Label>
+              <Input
+                id={`email-${proposta.id}`}
+                type="email"
+                value={campos.email}
+                onChange={(e) => setCampos({ ...campos, email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor={`telefone-${proposta.id}`}>Telefone</Label>
+              <Input
+                id={`telefone-${proposta.id}`}
+                value={campos.telefone}
+                onChange={(e) => setCampos({ ...campos, telefone: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor={`segmento-${proposta.id}`}>Segmento</Label>
+              <Input
+                id={`segmento-${proposta.id}`}
+                placeholder="Ex.: Pizzaria, Restaurante..."
+                value={campos.segmento}
+                onChange={(e) => setCampos({ ...campos, segmento: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor={`cidade-${proposta.id}`}>Cidade</Label>
+              <Input
+                id={`cidade-${proposta.id}`}
+                value={campos.cidade}
+                onChange={(e) => setCampos({ ...campos, cidade: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor={`estado-${proposta.id}`}>Estado</Label>
+              <Input
+                id={`estado-${proposta.id}`}
+                maxLength={2}
+                placeholder="UF"
+                value={campos.estado}
+                onChange={(e) => setCampos({ ...campos, estado: e.target.value })}
+              />
+            </div>
+          </div>
 
           {analise.diffContrato.length > 0 && (
             <div className="space-y-1 rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-sm">
@@ -131,7 +195,7 @@ export function RevisaoPropostaItem({ proposta }: { proposta: Proposta }) {
           )}
 
           <div className="flex gap-2">
-            <Button size="sm" onClick={handleAplicar} disabled={pending}>
+            <Button size="sm" onClick={handleAplicar} disabled={pending || !campos.documento.trim()}>
               {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {pending ? "Aplicando..." : "Aplicar dados cadastrais"}
             </Button>

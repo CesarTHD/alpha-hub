@@ -44,6 +44,10 @@ Regras:
 - "nome", "documento", "email", "telefone", "cidade", "estado" e "cep" são sempre do CONTRATANTE (o
   cliente), nunca da CONTRATADA (a Alpha) — e nunca do foro do contrato, que reflete a jurisdição
   contratual, não o endereço do cliente.
+- "documento" (CPF/CNPJ) deve ser TODOS os dígitos, sem pontuação. CNPJ tem 14 dígitos: 8 da raiz + 4
+  da filial + 2 dígitos verificadores (ex.: "58.422.191/0001-60" -> "58422191000160"). Nunca devolva
+  só a raiz do CNPJ (8 dígitos) — se o contrato mostrar o CNPJ pontuado ou não, transcreva o número
+  completo como está escrito, incluindo a parte "/0001-XX" (ou outra filial) no final.
 - "cidade" e "estado" só devem ser preenchidos se o nome da cidade/UF estiver escrito por extenso no
   endereço do CONTRATANTE. Nunca deduza a cidade a partir do CEP ou do DDD do telefone — isso é
   feito depois, de forma determinística, por uma consulta real ao CEP, não por você. Se o endereço só

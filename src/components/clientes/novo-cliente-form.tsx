@@ -17,6 +17,7 @@ import { createClienteComContrato } from "@/lib/actions/clientes";
 import { initialActionState } from "@/lib/actions/action-state";
 import { TipoContrato } from "@/generated/prisma/enums";
 import type { ContratoExtraido } from "@/lib/ai/contrato-extraction";
+import { normalizarDocumento } from "@/lib/cnpj";
 
 type Franquia = { id: string; nome: string; cidade: string; estado: string };
 
@@ -68,7 +69,12 @@ export function NovoClienteForm({
           </div>
           <div className="space-y-2">
             <Label htmlFor="documento">CPF/CNPJ</Label>
-            <Input id="documento" name="documento" defaultValue={initialData?.documento ?? undefined} required />
+            <Input
+              id="documento"
+              name="documento"
+              defaultValue={initialData?.documento ? normalizarDocumento(initialData.documento).documento : undefined}
+              required
+            />
             {state?.fieldErrors?.documento && (
               <p className="text-sm text-destructive">{state.fieldErrors.documento[0]}</p>
             )}

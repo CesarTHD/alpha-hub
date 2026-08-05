@@ -6,13 +6,23 @@ import { getCurrentUser } from "@/lib/current-user";
 import { canReviewD4Sign } from "@/lib/rbac";
 import { downloadD4SignDocumentPdf, D4SignError } from "@/lib/d4sign/client";
 import { buildD4SignViewLink } from "@/lib/d4sign/link";
+import { normalizarDocumento } from "@/lib/cnpj";
 import { extrairContratoDePdf } from "./contrato-pdf-pipeline";
-import { compararContrato, compararCadastro, type Inconsistencia } from "@/lib/contrato-comparacao";
+import { compararContrato, type Inconsistencia } from "@/lib/contrato-comparacao";
 import type { ContratoExtraido } from "@/lib/ai/contrato-extraction";
+
+export type CadastroAtual = {
+  documento: string;
+  email: string | null;
+  telefone: string | null;
+  cidade: string | null;
+  estado: string | null;
+  segmento: string | null;
+};
 
 export type AnaliseProposta = {
   extraido: ContratoExtraido;
-  diffCadastral: Inconsistencia[];
+  atual: CadastroAtual;
   diffContrato: Inconsistencia[];
 };
 
@@ -54,14 +64,6 @@ export async function analisarPropostaD4Sign(propostaId: string): Promise<Analis
     (c) => c.status === "ATIVO" || c.status === "PAUSADO" || c.status === "VENCIDO" || c.status === "ENCERRADO",
   );
 
-  const diffCadastral = compararCadastro(resultado.data, {
-    documento: cliente.documento,
-    email: cliente.email,
-    telefone: cliente.telefone,
-    cidade: cliente.cidade,
-    estado: cliente.estado,
-  });
-
   const diffContrato = contratoAtual
     ? compararContrato(resultado.data, {
         plano: contratoAtual.plano,
@@ -73,14 +75,37 @@ export async function analisarPropostaD4Sign(propostaId: string): Promise<Analis
       })
     : [];
 
-  return { ok: true, data: { extraido: resultado.data, diffCadastral, diffContrato } };
+  return {
+    ok: true,
+    data: {
+      extraido: resultado.data,
+      atual: {
+        documento: cliente.documento,
+        email: cliente.email,
+        telefone: cliente.telefone,
+        cidade: cliente.cidade,
+        estado: cliente.estado,
+        segmento: cliente.segmento,
+      },
+      diffContrato,
+    },
+  };
 }
 
-/** Aplica os dados cadastrais extraídos ao cliente (só os campos que a extração
- * trouxe) e salva o link do D4Sign — só roda depois de o admin confirmar na tela
- * de revisão. Nunca mexe em plano/valor de contrato: isso continua exigindo as
- * ações dedicadas (Alterar plano/valor), pra manter o rastro de auditoria certo. */
-export async function aplicarPropostaD4Sign(propostaId: string, extraido: ContratoExtraido) {
+export type CamposCadastrais = {
+  documento: string;
+  email: string;
+  telefone: string;
+  cidade: string;
+  estado: string;
+  segmento: string;
+};
+
+/** Aplica os dados cadastrais — já revisados e possivelmente editados à mão pelo
+ * admin na tela — ao cliente, e salva o link do D4Sign. Nunca mexe em plano/valor
+ * de contrato: isso continua exigindo as ações dedicadas (Alterar plano/valor),
+ * pra manter o rastro de auditoria certo. */
+export async function aplicarPropostaD4Sign(propostaId: string, campos: CamposCadastrais) {
   const usuario = await getCurrentUser();
   if (!canReviewD4Sign(usuario)) return { ok: false, message: "Acesso negado." };
 
@@ -88,20 +113,23 @@ export async function aplicarPropostaD4Sign(propostaId: string, extraido: Contra
   if (!proposta) return { ok: false, message: "Proposta não encontrada." };
   if (proposta.status !== "PENDENTE") return { ok: false, message: "Essa proposta já foi revisada." };
 
-  const dadosCliente: Record<string, string> = {
-    linkContratoD4Sign: buildD4SignViewLink(proposta.uuidDocumento),
-  };
-  if (extraido.documento) dadosCliente.documento = extraido.documento.replace(/\D/g, "");
-  if (extraido.email) dadosCliente.email = extraido.email;
-  if (extraido.telefone) dadosCliente.telefone = extraido.telefone;
-  if (extraido.cidade) dadosCliente.cidade = extraido.cidade;
-  if (extraido.estado) dadosCliente.estado = extraido.estado.slice(0, 2).toUpperCase();
+  const documento = normalizarDocumento(campos.documento).documento;
+  if (!documento) return { ok: false, message: "Informe o CPF/CNPJ." };
 
   try {
     await db.$transaction(async (tx) => {
       await tx.cliente.update({
         where: { id: proposta.clienteId },
-        data: { ...dadosCliente, updatedById: usuario.id },
+        data: {
+          documento,
+          email: campos.email.trim() || null,
+          telefone: campos.telefone.trim() || null,
+          cidade: campos.cidade.trim() || null,
+          estado: campos.estado.trim() ? campos.estado.trim().slice(0, 2).toUpperCase() : null,
+          segmento: campos.segmento.trim() || null,
+          linkContratoD4Sign: buildD4SignViewLink(proposta.uuidDocumento),
+          updatedById: usuario.id,
+        },
       });
       await tx.propostaD4Sign.update({
         where: { id: propostaId },
