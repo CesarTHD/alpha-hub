@@ -70,9 +70,9 @@ function extrairNomeDocumento(secao: string): { nome: string | null; documento: 
 
   const partes = nomePart
     .split("/")
-    .map((s) => s.trim())
+    .map((s) => s.replace(/\s+/g, " ").trim())
     .filter(Boolean);
-  const nome = partes.length > 0 ? partes[partes.length - 1] : nomePart;
+  const nome = partes.length > 0 ? partes[partes.length - 1] : nomePart.replace(/\s+/g, " ").trim();
 
   return { nome: nome || null, documento };
 }
@@ -105,7 +105,7 @@ function extrairCadastrais(text: string): CamposCadastrais {
   // Cidade/estado só quando escritos por extenso com separador explícito ("Cidade - UF" /
   // "Cidade/UF") logo antes do CEP — sem isso, fica null e quem chama resolve por CEP via
   // ViaCEP (determinístico; ver src/lib/cep.ts), em vez de arriscar um palpite por regex.
-  const cidadeEstadoMatch = secao.match(/,\s*([A-ZÀ-Ÿ][A-Za-zÀ-ÿ\s]{2,30}?)\s*[-/]\s*([A-Z]{2})\s*,?\s*CEP/i);
+  const cidadeEstadoMatch = secao.match(/([A-ZÀ-Ÿ][A-Za-zÀ-ÿ]+)\s*[-–\/]\s*([A-Z]{2})\s*,?\s*CEP/);
 
   return {
     nome,
@@ -163,13 +163,13 @@ function parseNumeroBR(raw: string): number | null {
 function extrairValor(text: string): number | null {
   // Ancorado na cláusula de honorários pra pegar o valor TOTAL, não uma parcela solta que
   // apareça em outra cláusula (ex.: valores de referência de rescisão, multas em R$).
-  const anchored = text.match(/receber[áa]\s*,?\s*o\s+valor\s+de\s+R\$\s*([\d.,]+)/i);
+  const anchored = text.match(/receber[áa]\s*,?\s*o\s+valor(?:\s+total)?\s+de\s+R\$\s*([\d.,]*\d)/i);
   if (anchored) {
     const v = parseNumeroBR(anchored[1]);
     if (v !== null) return v;
   }
 
-  const generico = text.match(/R\$\s*([\d.,]+)/);
+  const generico = text.match(/R\$\s*([\d.,]*\d)/);
   return generico ? parseNumeroBR(generico[1]) : null;
 }
 
@@ -178,7 +178,7 @@ function extrairInicioContrato(text: string): string | null {
   // fallback "qualquer data DD/MM/AAAA do documento" foi cogitado (é o que o projeto de
   // referência faz) mas descartado: contratos reais têm outras datas soltas (aditivos,
   // referências a "Contrato Original") que virariam falso positivo.
-  const explicito = text.match(/no\s+dia\s+(\d{2})\/(\d{2})\/(\d{4})/i);
+  const explicito = text.match(/(?:no\s+dia|na\s+data\s+de)\s+(\d{2})\/(\d{2})\/(\d{4})/i);
   if (explicito) return `${explicito[3]}-${explicito[2]}-${explicito[1]}`;
 
   const vig = text.match(/(?:in[íi]cio\s+de\s+vig[êe]ncia|data\s+de\s+assinatura)[^\d]{0,30}(\d{2})\/(\d{2})\/(\d{4})/i);
@@ -188,13 +188,18 @@ function extrairInicioContrato(text: string): string | null {
 }
 
 function extrairFormaPagamento(text: string): string | null {
-  // Sempre ancorado em "no dia" (a cláusula de honorários/pagamento) — sem isso, "através de"
-  // aparece em várias outras cláusulas do contrato (ex.: como o cliente paga o investimento em
-  // mídia, não os honorários da Alpha) e vira falso positivo.
-  const porExtenso = text.match(/atrav[ée]s\s+de\s+([^{}]{2,40}?)\s+no\s+dia/i);
-  if (porExtenso) return porExtenso[1].replace(/\s+/g, " ").trim();
+  // Sempre ancorado em "no dia"/"na data de" (a cláusula de honorários/pagamento) — sem isso,
+  // "através de"/"por meio de" aparece em várias outras cláusulas do contrato (ex.: como o
+  // cliente paga o investimento em mídia, não os honorários da Alpha) e vira falso positivo.
+  const porExtenso = text.match(
+    /(?:atrav[ée]s\s+de|por\s+meio\s+de)\s+([^{}]{2,40}?)\s*,?\s*(?:no\s+dia|na\s+data\s+de)/i,
+  );
+  if (porExtenso) {
+    const limpo = porExtenso[1].replace(/\s+/g, " ").replace(/[,\s]+$/, "").trim();
+    if (limpo) return limpo;
+  }
 
-  const viaForma = text.match(/via\s+(PIX|pix|cart[ãa]o|boleto)\s+no\s+dia/i);
+  const viaForma = text.match(/via\s+(PIX|pix|cart[ãa]o|boleto)\s*,?\s*(?:no\s+dia|na\s+data\s+de)/i);
   if (viaForma) return viaForma[1].toUpperCase();
 
   return null;
