@@ -8,6 +8,7 @@ import { downloadD4SignDocumentPdf, D4SignError } from "@/lib/d4sign/client";
 import { buildD4SignViewLink, extractD4SignUuid } from "@/lib/d4sign/link";
 import { normalizarDocumento } from "@/lib/cnpj";
 import { extrairContratoDePdf } from "./contrato-pdf-pipeline";
+import { importarDeArquivo } from "./importar-contrato-pdf";
 import { compararContrato, type Inconsistencia } from "@/lib/contrato-comparacao";
 import type { ContratoExtraido } from "@/lib/ai/contrato-extraction";
 
@@ -21,13 +22,68 @@ export type CadastroAtual = {
 };
 
 export type AnaliseProposta = {
-  uuidDocumento: string;
+  /** null quando os dados vieram de um PDF enviado manualmente, sem link do D4Sign. */
+  uuidDocumento: string | null;
   extraido: ContratoExtraido;
   atual: CadastroAtual;
   diffContrato: Inconsistencia[];
 };
 
 export type AnaliseResult = { ok: true; data: AnaliseProposta } | { ok: false; message: string };
+
+async function buscarPropostaPendente(propostaId: string) {
+  const proposta = await db.propostaD4Sign.findUnique({
+    where: { id: propostaId },
+    include: {
+      cliente: {
+        include: {
+          contratos: { where: { deletedAt: null }, orderBy: { inicioContrato: "desc" } },
+        },
+      },
+    },
+  });
+  if (!proposta) return { ok: false as const, message: "Proposta não encontrada." };
+  if (proposta.status !== "PENDENTE") return { ok: false as const, message: "Essa proposta já foi revisada." };
+  return { ok: true as const, proposta };
+}
+
+type BuscaPropostaOk = Extract<Awaited<ReturnType<typeof buscarPropostaPendente>>, { ok: true }>;
+type ClienteComContratos = BuscaPropostaOk["proposta"]["cliente"];
+
+function montarAnalise(
+  cliente: ClienteComContratos,
+  extraido: ContratoExtraido,
+  uuidDocumento: string | null,
+): AnaliseProposta {
+  const contratoAtual = cliente.contratos.find(
+    (c) => c.status === "ATIVO" || c.status === "PAUSADO" || c.status === "VENCIDO" || c.status === "ENCERRADO",
+  );
+
+  const diffContrato = contratoAtual
+    ? compararContrato(extraido, {
+        plano: contratoAtual.plano,
+        tipoContrato: contratoAtual.tipoContrato,
+        valorContrato: contratoAtual.valorContrato.toString(),
+        valorMensal: contratoAtual.valorMensal.toString(),
+        inicioContrato: contratoAtual.inicioContrato.toISOString(),
+        renovacaoAutomatica: contratoAtual.renovacaoAutomatica,
+      })
+    : [];
+
+  return {
+    uuidDocumento,
+    extraido,
+    atual: {
+      documento: cliente.documento,
+      email: cliente.email,
+      telefone: cliente.telefone,
+      cidade: cliente.cidade,
+      estado: cliente.estado,
+      segmento: cliente.segmento,
+    },
+    diffContrato,
+  };
+}
 
 /** Baixa e interpreta o documento indicado por `linkOuUuid` (o candidato do match
  * automático por padrão, mas o admin pode trocar por outro link/UUID antes de
@@ -40,18 +96,8 @@ export async function analisarPropostaD4Sign(propostaId: string, linkOuUuid: str
   const uuid = extractD4SignUuid(linkOuUuid);
   if (!uuid) return { ok: false, message: "Link ou UUID do D4Sign inválido." };
 
-  const proposta = await db.propostaD4Sign.findUnique({
-    where: { id: propostaId },
-    include: {
-      cliente: {
-        include: {
-          contratos: { where: { deletedAt: null }, orderBy: { inicioContrato: "desc" } },
-        },
-      },
-    },
-  });
-  if (!proposta) return { ok: false, message: "Proposta não encontrada." };
-  if (proposta.status !== "PENDENTE") return { ok: false, message: "Essa proposta já foi revisada." };
+  const busca = await buscarPropostaPendente(propostaId);
+  if (!busca.ok) return busca;
 
   let pdfBuffer: Buffer;
   try {
@@ -65,38 +111,25 @@ export async function analisarPropostaD4Sign(propostaId: string, linkOuUuid: str
     return { ok: false, message: resultado?.message ?? "Erro ao interpretar o documento." };
   }
 
-  const cliente = proposta.cliente;
-  const contratoAtual = cliente.contratos.find(
-    (c) => c.status === "ATIVO" || c.status === "PAUSADO" || c.status === "VENCIDO" || c.status === "ENCERRADO",
-  );
+  return { ok: true, data: montarAnalise(busca.proposta.cliente, resultado.data, uuid) };
+}
 
-  const diffContrato = contratoAtual
-    ? compararContrato(resultado.data, {
-        plano: contratoAtual.plano,
-        tipoContrato: contratoAtual.tipoContrato,
-        valorContrato: contratoAtual.valorContrato.toString(),
-        valorMensal: contratoAtual.valorMensal.toString(),
-        inicioContrato: contratoAtual.inicioContrato.toISOString(),
-        renovacaoAutomatica: contratoAtual.renovacaoAutomatica,
-      })
-    : [];
+/** Mesma análise, mas a partir de um PDF enviado manualmente — usado quando o
+ * cliente não tem match automático no D4Sign ou o candidato encontrado está
+ * errado e o admin já tem o contrato em mãos. */
+export async function analisarPropostaPorPdf(propostaId: string, formData: FormData): Promise<AnaliseResult> {
+  const usuario = await getCurrentUser();
+  if (!canReviewD4Sign(usuario)) return { ok: false, message: "Acesso negado." };
 
-  return {
-    ok: true,
-    data: {
-      uuidDocumento: uuid,
-      extraido: resultado.data,
-      atual: {
-        documento: cliente.documento,
-        email: cliente.email,
-        telefone: cliente.telefone,
-        cidade: cliente.cidade,
-        estado: cliente.estado,
-        segmento: cliente.segmento,
-      },
-      diffContrato,
-    },
-  };
+  const busca = await buscarPropostaPendente(propostaId);
+  if (!busca.ok) return busca;
+
+  const resultado = await importarDeArquivo(formData);
+  if (!resultado || !resultado.ok || !resultado.data) {
+    return { ok: false, message: resultado?.message ?? "Erro ao interpretar o documento." };
+  }
+
+  return { ok: true, data: montarAnalise(busca.proposta.cliente, resultado.data, null) };
 }
 
 export type CamposCadastrais = {
@@ -112,12 +145,17 @@ export type CamposCadastrais = {
  * admin na tela — ao cliente, e salva o link do D4Sign. Nunca mexe em plano/valor
  * de contrato: isso continua exigindo as ações dedicadas (Alterar plano/valor),
  * pra manter o rastro de auditoria certo. */
-export async function aplicarPropostaD4Sign(propostaId: string, linkOuUuid: string, campos: CamposCadastrais) {
+export async function aplicarPropostaD4Sign(
+  propostaId: string,
+  linkOuUuid: string | null,
+  campos: CamposCadastrais,
+) {
   const usuario = await getCurrentUser();
   if (!canReviewD4Sign(usuario)) return { ok: false, message: "Acesso negado." };
 
-  const uuid = extractD4SignUuid(linkOuUuid);
-  if (!uuid) return { ok: false, message: "Link ou UUID do D4Sign inválido." };
+  // null quando os dados vieram de um PDF enviado manualmente, sem link do D4Sign.
+  const uuid = linkOuUuid ? extractD4SignUuid(linkOuUuid) : null;
+  if (linkOuUuid && !uuid) return { ok: false, message: "Link ou UUID do D4Sign inválido." };
 
   const proposta = await db.propostaD4Sign.findUnique({ where: { id: propostaId } });
   if (!proposta) return { ok: false, message: "Proposta não encontrada." };
@@ -137,7 +175,7 @@ export async function aplicarPropostaD4Sign(propostaId: string, linkOuUuid: stri
           cidade: campos.cidade.trim() || null,
           estado: campos.estado.trim() ? campos.estado.trim().slice(0, 2).toUpperCase() : null,
           segmento: campos.segmento.trim() || null,
-          linkContratoD4Sign: buildD4SignViewLink(uuid),
+          ...(uuid ? { linkContratoD4Sign: buildD4SignViewLink(uuid) } : {}),
           updatedById: usuario.id,
         },
       });
@@ -145,7 +183,13 @@ export async function aplicarPropostaD4Sign(propostaId: string, linkOuUuid: stri
         where: { id: propostaId },
         // Se o admin trocou o link/UUID antes de aplicar, a proposta passa a
         // refletir o documento realmente usado, não mais o candidato original.
-        data: { status: "APLICADA", uuidDocumento: uuid, revisadoEm: new Date(), revisadoPorId: usuario.id },
+        // Sem uuid (upload manual), o candidato original fica registrado mesmo.
+        data: {
+          status: "APLICADA",
+          ...(uuid ? { uuidDocumento: uuid } : {}),
+          revisadoEm: new Date(),
+          revisadoPorId: usuario.id,
+        },
       });
     });
   } catch (err) {

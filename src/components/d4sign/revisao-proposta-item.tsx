@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -19,9 +20,11 @@ import { normalizarDocumento } from "@/lib/cnpj";
 import { buildD4SignViewLink, extractD4SignUuid } from "@/lib/d4sign/link";
 import {
   analisarPropostaD4Sign,
+  analisarPropostaPorPdf,
   aplicarPropostaD4Sign,
   rejeitarPropostaD4Sign,
   type AnaliseProposta,
+  type AnaliseResult,
 } from "@/lib/actions/d4sign-revisao";
 
 type Proposta = {
@@ -54,6 +57,8 @@ export function RevisaoPropostaItem({
   segmentoOptions: string[];
 }) {
   const [linkDocumento, setLinkDocumento] = useState(buildD4SignViewLink(proposta.uuidDocumento));
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
   const [analise, setAnalise] = useState<AnaliseProposta | null>(null);
   const [campos, setCampos] = useState<CamposForm | null>(null);
   const [segmentoOutro, setSegmentoOutro] = useState(false);
@@ -63,28 +68,44 @@ export function RevisaoPropostaItem({
 
   const uuidValido = extractD4SignUuid(linkDocumento);
 
-  function handleAnalisar() {
+  function aplicarResultado(result: AnaliseResult) {
+    if (result.ok) {
+      const { extraido, atual } = result.data;
+      const segmentoAtual = atual.segmento ?? "";
+      setAnalise(result.data);
+      setCampos({
+        documento: extraido.documento ? normalizarDocumento(extraido.documento).documento : atual.documento,
+        email: extraido.email ?? atual.email ?? "",
+        telefone: extraido.telefone ?? atual.telefone ?? "",
+        cidade: extraido.cidade ?? atual.cidade ?? "",
+        estado: (extraido.estado ? extraido.estado.slice(0, 2).toUpperCase() : atual.estado) ?? "",
+        segmento: segmentoAtual,
+      });
+      setSegmentoOutro(segmentoAtual !== "" && !segmentoOptions.includes(segmentoAtual));
+    } else {
+      setAnalise(null);
+      setCampos(null);
+      setErro(result.message);
+    }
+  }
+
+  function handleAnalisarPorLink() {
     setErro(null);
     startTransition(async () => {
-      const result = await analisarPropostaD4Sign(proposta.id, linkDocumento);
-      if (result.ok) {
-        const { extraido, atual } = result.data;
-        const segmentoAtual = atual.segmento ?? "";
-        setAnalise(result.data);
-        setCampos({
-          documento: extraido.documento ? normalizarDocumento(extraido.documento).documento : atual.documento,
-          email: extraido.email ?? atual.email ?? "",
-          telefone: extraido.telefone ?? atual.telefone ?? "",
-          cidade: extraido.cidade ?? atual.cidade ?? "",
-          estado: (extraido.estado ? extraido.estado.slice(0, 2).toUpperCase() : atual.estado) ?? "",
-          segmento: segmentoAtual,
-        });
-        setSegmentoOutro(segmentoAtual !== "" && !segmentoOptions.includes(segmentoAtual));
-      } else {
-        setAnalise(null);
-        setCampos(null);
-        setErro(result.message);
-      }
+      aplicarResultado(await analisarPropostaD4Sign(proposta.id, linkDocumento));
+    });
+  }
+
+  function handleAnalisarPorPdf() {
+    const file = fileInputRef.current?.files?.[0];
+    if (!file) return;
+
+    setErro(null);
+    const formData = new FormData();
+    formData.set("arquivoContrato", file);
+
+    startTransition(async () => {
+      aplicarResultado(await analisarPropostaPorPdf(proposta.id, formData));
     });
   }
 
@@ -132,41 +153,65 @@ export function RevisaoPropostaItem({
         </Badge>
       </div>
 
-      <div className="space-y-1">
-        <Label htmlFor={`link-${proposta.id}`}>Link ou UUID do documento no D4Sign</Label>
-        <div className="flex gap-2">
+      <Tabs defaultValue="link">
+        <TabsList>
+          <TabsTrigger value="link">Link ou UUID (D4Sign)</TabsTrigger>
+          <TabsTrigger value="pdf">Upload de PDF</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="link" className="space-y-2 pt-2">
+          <Label htmlFor={`link-${proposta.id}`}>Link ou UUID do documento no D4Sign</Label>
+          <div className="flex gap-2">
+            <Input
+              id={`link-${proposta.id}`}
+              value={linkDocumento}
+              onChange={(e) => setLinkDocumento(e.target.value)}
+              disabled={pending}
+            />
+            {uuidValido && (
+              <Button asChild variant="outline" size="sm">
+                <a href={buildD4SignViewLink(uuidValido)} target="_blank" rel="noopener noreferrer">
+                  Ver
+                </a>
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Errou o candidato? Cole aqui o link/UUID certo e busque de novo antes de aplicar.
+          </p>
+          <Button size="sm" variant="secondary" onClick={handleAnalisarPorLink} disabled={pending || !uuidValido}>
+            {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {pending ? "Buscando..." : campos ? "Buscar novamente" : "Buscar e comparar dados"}
+          </Button>
+        </TabsContent>
+
+        <TabsContent value="pdf" className="space-y-2 pt-2">
+          <Label htmlFor={`pdf-${proposta.id}`}>Arquivo PDF do contrato assinado</Label>
           <Input
-            id={`link-${proposta.id}`}
-            value={linkDocumento}
-            onChange={(e) => setLinkDocumento(e.target.value)}
+            id={`pdf-${proposta.id}`}
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf"
             disabled={pending}
+            onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
           />
-          {uuidValido && (
-            <Button asChild variant="outline" size="sm">
-              <a href={buildD4SignViewLink(uuidValido)} target="_blank" rel="noopener noreferrer">
-                Ver
-              </a>
-            </Button>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Errou o candidato? Cole aqui o link/UUID certo e busque de novo antes de aplicar.
-        </p>
-      </div>
+          <p className="text-xs text-muted-foreground">
+            Use quando não houver match no D4Sign ou o candidato estiver errado e você já tiver o PDF em mãos.
+          </p>
+          <Button size="sm" variant="secondary" onClick={handleAnalisarPorPdf} disabled={pending || !fileName}>
+            {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {pending ? "Analisando..." : "Analisar PDF enviado"}
+          </Button>
+        </TabsContent>
+      </Tabs>
 
       {erro && <p className="text-sm text-destructive">{erro}</p>}
 
-      <div className="flex gap-2">
-        <Button size="sm" variant="secondary" onClick={handleAnalisar} disabled={pending || !uuidValido}>
-          {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {pending ? "Buscando..." : campos ? "Buscar novamente" : "Buscar e comparar dados"}
+      {!campos && (
+        <Button size="sm" variant="ghost" onClick={handleRejeitar} disabled={pending}>
+          Rejeitar sem analisar
         </Button>
-        {!campos && (
-          <Button size="sm" variant="ghost" onClick={handleRejeitar} disabled={pending}>
-            Rejeitar sem analisar
-          </Button>
-        )}
-      </div>
+      )}
 
       {campos && analise && (
         <div className="space-y-4">

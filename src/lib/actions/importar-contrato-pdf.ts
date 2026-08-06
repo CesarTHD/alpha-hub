@@ -8,8 +8,9 @@ import type { ImportContratoState } from "./import-contrato-state";
 
 const MAX_PDF_BYTES = 20 * 1024 * 1024;
 
-/** Valida e extrai o PDF enviado — compartilhado pelos fluxos de novo cliente e edição de cadastro. */
-async function importarDeArquivo(formData: FormData): Promise<ImportContratoState> {
+/** Valida e extrai o PDF enviado — compartilhado pelos fluxos de novo cliente, edição de
+ * cadastro e revisão D4Sign (upload manual quando não há match/link do D4Sign). */
+export async function importarDeArquivo(formData: FormData): Promise<ImportContratoState> {
   const arquivo = formData.get("arquivoContrato");
   if (!(arquivo instanceof File) || arquivo.size === 0) {
     return { ok: false, message: "Selecione um arquivo PDF do contrato." };
