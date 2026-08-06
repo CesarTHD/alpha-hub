@@ -20,7 +20,7 @@ import { importarDadosClienteD4Sign } from "@/lib/actions/importar-contrato-d4si
 import { importarDadosClientePdf } from "@/lib/actions/importar-contrato-pdf";
 import { ImportarContrato } from "./importar-contrato";
 import { useServerAction } from "@/hooks/use-server-action";
-import type { ContratoExtraido } from "@/lib/ai/contrato-extraction";
+import type { ContratoExtraido } from "@/lib/contrato-extracao";
 import { normalizeD4SignLink } from "@/lib/d4sign/link";
 import { compararContrato, type ContratoAtual, type Inconsistencia } from "@/lib/contrato-comparacao";
 import { normalizarDocumento } from "@/lib/cnpj";

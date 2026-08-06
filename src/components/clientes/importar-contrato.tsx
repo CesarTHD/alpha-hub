@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { normalizeD4SignLink } from "@/lib/d4sign/link";
-import type { ContratoExtraido } from "@/lib/ai/contrato-extraction";
+import type { ContratoExtraido } from "@/lib/contrato-extracao";
 import type { ImportContratoState } from "@/lib/actions/import-contrato-state";
 
 type ImportAction = (prev: ImportContratoState, formData: FormData) => Promise<ImportContratoState>;

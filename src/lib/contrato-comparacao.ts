@@ -1,5 +1,5 @@
 import { formatCurrency, formatDate } from "@/lib/format";
-import type { ContratoExtraido } from "@/lib/ai/contrato-extraction";
+import type { ContratoExtraido } from "@/lib/contrato-extracao";
 
 export type ContratoAtual = {
   plano: string;

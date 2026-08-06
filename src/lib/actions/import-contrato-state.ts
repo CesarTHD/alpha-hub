@@ -1,4 +1,4 @@
-import type { ContratoExtraido } from "@/lib/ai/contrato-extraction";
+import type { ContratoExtraido } from "@/lib/contrato-extracao";
 
 export type ImportContratoState = {
   ok: boolean;

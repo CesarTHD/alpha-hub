@@ -16,7 +16,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { createClienteComContrato } from "@/lib/actions/clientes";
 import { initialActionState } from "@/lib/actions/action-state";
 import { TipoContrato } from "@/generated/prisma/enums";
-import type { ContratoExtraido } from "@/lib/ai/contrato-extraction";
+import type { ContratoExtraido } from "@/lib/contrato-extracao";
 import { normalizarDocumento } from "@/lib/cnpj";
 
 type Franquia = { id: string; nome: string; cidade: string; estado: string };

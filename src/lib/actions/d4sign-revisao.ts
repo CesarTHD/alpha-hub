@@ -10,7 +10,7 @@ import { normalizarDocumento } from "@/lib/cnpj";
 import { extrairContratoDePdf } from "./contrato-pdf-pipeline";
 import { importarDeArquivo } from "./importar-contrato-pdf";
 import { compararContrato, type Inconsistencia } from "@/lib/contrato-comparacao";
-import type { ContratoExtraido } from "@/lib/ai/contrato-extraction";
+import type { ContratoExtraido } from "@/lib/contrato-extracao";
 
 export type CadastroAtual = {
   documento: string;

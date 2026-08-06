@@ -6,7 +6,7 @@ import { ImportarContrato } from "./importar-contrato";
 import { NovoClienteForm } from "./novo-cliente-form";
 import { importarContratoD4Sign } from "@/lib/actions/importar-contrato-d4sign";
 import { importarContratoPdf } from "@/lib/actions/importar-contrato-pdf";
-import type { ContratoExtraido } from "@/lib/ai/contrato-extraction";
+import type { ContratoExtraido } from "@/lib/contrato-extracao";
 
 type Franquia = { id: string; nome: string; cidade: string; estado: string };
 

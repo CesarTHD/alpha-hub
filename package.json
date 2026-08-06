@@ -17,7 +17,6 @@
     "d4sign:match": "tsx scripts/matching-d4sign.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.115.0",
     "@prisma/adapter-pg": "^7.9.0",
     "@prisma/client": "^7.9.0",
     "class-variance-authority": "^0.7.1",

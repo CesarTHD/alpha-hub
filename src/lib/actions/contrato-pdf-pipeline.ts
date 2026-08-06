@@ -1,9 +1,11 @@
 import { extractPdfText } from "@/lib/pdf/extract-text";
-import { extractContratoFromText } from "@/lib/ai/contrato-extraction";
+import { extractContratoFromText } from "@/lib/contrato-extracao";
 import { buscarCidadeEstadoPorCep } from "@/lib/cep";
 import type { ImportContratoState } from "./import-contrato-state";
 
-/** Extrai texto de um PDF de contrato e interpreta os dados com IA. Compartilhado pelos fluxos de importação via D4Sign e via upload direto do arquivo. */
+/** Extrai texto de um PDF de contrato e interpreta os dados via regex (sem IA — ver
+ * src/lib/contrato-extracao.ts). Compartilhado pelos fluxos de importação via D4Sign e via
+ * upload direto do arquivo. */
 export async function extrairContratoDePdf(pdfBuffer: Buffer): Promise<ImportContratoState> {
   let text: string;
   try {
@@ -16,7 +18,7 @@ export async function extrairContratoDePdf(pdfBuffer: Buffer): Promise<ImportCon
   }
 
   try {
-    const data = await extractContratoFromText(text);
+    const data = extractContratoFromText(text);
     if (data.documento) data.documento = data.documento.replace(/\D/g, "");
 
     if (!data.cidade && data.cep) {
@@ -29,10 +31,10 @@ export async function extrairContratoDePdf(pdfBuffer: Buffer): Promise<ImportCon
 
     return { ok: true, message: "Contrato importado. Revise os dados antes de salvar.", data };
   } catch (err) {
-    console.error("[IA] Erro ao interpretar contrato:", err);
+    console.error("Erro ao interpretar contrato:", err);
     return {
       ok: false,
-      message: "Erro ao interpretar o contrato com IA. Preencha os campos manualmente.",
+      message: "Erro ao interpretar o contrato. Preencha os campos manualmente.",
     };
   }
 }
