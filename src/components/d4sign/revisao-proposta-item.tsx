@@ -111,8 +111,11 @@ export function RevisaoPropostaItem({
 
   function handleAplicar() {
     if (!campos || !analise) return;
+    // Usa o link/UUID que está no campo NA HORA DE APLICAR (não o que a análise resolveu) — o
+    // reviewer pode ter editado o campo depois de analisar (inclusive analisando por PDF, que
+    // nunca preenche uuidDocumento sozinho), e é o campo visível que deve decidir o que é salvo.
     startTransition(async () => {
-      const result = await aplicarPropostaD4Sign(proposta.id, analise.uuidDocumento, campos);
+      const result = await aplicarPropostaD4Sign(proposta.id, uuidValido, campos);
       if (result.ok) {
         toast.success(result.message ?? "Dados aplicados.");
         setResolvido(true);
@@ -316,6 +319,24 @@ export function RevisaoPropostaItem({
               </p>
             </div>
           )}
+
+          <p className="text-xs text-muted-foreground">
+            Link do D4Sign que será salvo no cliente:{" "}
+            {uuidValido ? (
+              <>
+                <span className="font-medium text-foreground">{buildD4SignViewLink(uuidValido)}</span>{" "}
+                <button
+                  type="button"
+                  className="underline underline-offset-2"
+                  onClick={() => setLinkDocumento("")}
+                >
+                  remover
+                </button>
+              </>
+            ) : (
+              "nenhum — o cliente ficará sem link registrado (preencha na aba \"Link ou UUID (D4Sign)\" se quiser salvar um)"
+            )}
+          </p>
 
           <div className="flex gap-2">
             <Button size="sm" onClick={handleAplicar} disabled={pending || !campos.documento.trim()}>
