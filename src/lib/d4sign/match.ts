@@ -1,11 +1,9 @@
 import type { D4SignDocumentoResumo } from "./client";
 
-export type Confianca = "ALTA" | "MEDIA";
-
 export type CandidatoMatch = {
   uuidDocumento: string;
   nomeDocumento: string;
-  confianca: Confianca;
+  statusName: string;
 };
 
 /** Palavras que aparecem no nome do arquivo mas não identificam o cliente. */
@@ -34,6 +32,19 @@ const RUIDO = new Set([
   "unidade",
   "sinal",
 ]);
+
+/** Status do D4Sign que ainda valem como candidato de contrato de cliente. "Cancelado" nunca
+ * entra — documento cancelado não é um contrato válido em nenhuma hipótese. */
+const STATUS_CONSIDERADOS = new Set(["Finalizado", "Aguardando Assinaturas", "Aguardando Signatários"]);
+
+/** Prioridade entre status: Finalizado sempre vence — é o único juridicamente completo. As duas
+ * variantes de "aguardando" contam como o mesmo nível (só existem porque o D4Sign às vezes
+ * chama diferente dependendo de quem falta assinar). */
+export const PRIORIDADE_STATUS: Record<string, number> = {
+  Finalizado: 0,
+  "Aguardando Assinaturas": 1,
+  "Aguardando Signatários": 1,
+};
 
 const DIACRITICOS_RE = new RegExp("[\\u0300-\\u036f]", "g");
 
@@ -70,32 +81,29 @@ function mesmoConjunto(a: Set<string>, b: Set<string>): boolean {
 }
 
 /**
- * Casa um cliente com documento(s) "Finalizado" do D4Sign cujo nome contém
- * TODAS as palavras significativas do nome do cliente (ignora acentuação,
- * pontuação, e ruído como "pdf"/"termo"/"contrato"/números de revisão soltos).
+ * Todos os documentos do D4Sign (Finalizado ou aguardando assinatura — nunca Cancelado) cujo
+ * nome contém TODAS as palavras significativas do nome do cliente (ignora acentuação, pontuação,
+ * e ruído como "pdf"/"termo"/"contrato"/números de revisão soltos).
  *
- * Confiança ALTA exige as duas coisas: candidato único E conjunto de palavras
- * idêntico (não só "contém todas") — um nome curto como "Big Burguer" contém
- * todas as suas palavras dentro de "Big Bang Burguer" também, o que seria um
- * falso positivo perigoso se isso já bastasse pra confiança alta. Sobrando
- * palavra extra no documento, ou mais de um candidato, cai pra MEDIA — fica
- * pra revisão manual mesmo assim, mas sinalizado como menos confiável.
- *
- * Não desempata por data quando há múltiplos candidatos — baixar todos pra
- * comparar data custaria cota de download à toa; isso fica pra revisão manual.
+ * Pode devolver mais de um candidato: um cliente real pode ter mais de um documento no D4Sign
+ * (contrato antigo + renovação, um aditivo, ou até uma tentativa cancelada e refeita). Decidir
+ * qual usar — por prioridade de status e, se ainda empatado, por conteúdo do contrato — é
+ * responsabilidade de quem chama (ver scripts/matching-d4sign.ts); aqui só levantamos candidatos.
  */
-export function encontrarMelhorCandidato(
-  nomeCliente: string,
-  documentosFinalizados: D4SignDocumentoResumo[],
-): CandidatoMatch | null {
+export function encontrarCandidatos(nomeCliente: string, documentos: D4SignDocumentoResumo[]): CandidatoMatch[] {
   const alvo = palavrasSignificativas(nomeCliente);
-  if (alvo.size === 0) return null;
+  if (alvo.size === 0) return [];
 
-  const candidatos = documentosFinalizados.filter((doc) => contemTodas(alvo, palavrasSignificativas(doc.nameDoc)));
-  if (candidatos.length === 0) return null;
+  return documentos
+    .filter((doc) => STATUS_CONSIDERADOS.has(doc.statusName))
+    .filter((doc) => contemTodas(alvo, palavrasSignificativas(doc.nameDoc)))
+    .map((doc) => ({ uuidDocumento: doc.uuidDoc, nomeDocumento: doc.nameDoc, statusName: doc.statusName }));
+}
 
-  const escolhido = candidatos[0];
-  const confianca: Confianca =
-    candidatos.length === 1 && mesmoConjunto(alvo, palavrasSignificativas(escolhido.nameDoc)) ? "ALTA" : "MEDIA";
-  return { uuidDocumento: escolhido.uuidDoc, nomeDocumento: escolhido.nameDoc, confianca };
+/** true se o nome do documento bate com TODAS e SOMENTE as palavras do nome do cliente (conjunto
+ * idêntico, não só "contém todas") — um nome curto como "Big Burguer" contém todas as suas
+ * palavras dentro de "Big Bang Burguer" também, o que seria um falso positivo perigoso pra
+ * confiança ALTA se "contém todas" já bastasse. */
+export function nomeCasaExatamente(nomeCliente: string, nomeDocumento: string): boolean {
+  return mesmoConjunto(palavrasSignificativas(nomeCliente), palavrasSignificativas(nomeDocumento));
 }
