@@ -240,7 +240,7 @@ export default async function ClientesPage({
                     <span className="text-muted-foreground">—</span>
                   )}
                 </TableCell>
-                <TableCell>{contrato?.plano ?? "—"}</TableCell>
+                <TableCell className="text-center"><span className={`px-2 rounded-2xl text-xs text-center ${contrato?.plano.toUpperCase() == 'SILVER' ? 'bg-gray-600 text-white' : contrato?.plano.toUpperCase() == 'GOLD' ? 'bg-amber-400' : ''}`}>{contrato?.plano ?? "—"}</span></TableCell>
                 <TableCell>{contrato ? formatCurrency(contrato.valorMensal.toString()) : "—"}</TableCell>
                 <TableCell>
                   {contrato ? (
