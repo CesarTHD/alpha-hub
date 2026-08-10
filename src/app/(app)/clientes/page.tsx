@@ -142,7 +142,10 @@ export default async function ClientesPage({
 
       <Card>
         <CardContent className="pt-6">
-          <form className="flex flex-wrap items-end gap-3">
+          <form
+            key={`${nome ?? ""}|${status.join(",")}|${franquia.join(",")}|${profit.join(",")}|${semD4Sign}`}
+            className="flex flex-wrap items-end gap-3"
+          >
             <div className="space-y-1 space-x-2">
               <label className="text-xs text-muted-foreground">Nome</label>
               <Input name="nome" defaultValue={nome} placeholder="Buscar por nome..." className="w-56" />

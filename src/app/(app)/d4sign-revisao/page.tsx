@@ -87,7 +87,7 @@ export default async function D4SignRevisaoPage({
 
       <Card>
         <CardContent className="pt-6">
-          <form className="flex flex-wrap items-end gap-3">
+          <form key={`${franquia.join(",")}|${profit.join(",")}`} className="flex flex-wrap items-end gap-3">
             <div className="space-y-1 space-x-2">
               <label className="text-xs text-muted-foreground">Franquia</label>
               <MultiSelectFilter
