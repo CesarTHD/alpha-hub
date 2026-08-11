@@ -37,7 +37,7 @@ export const canManageContratos = (u: AuthUser) =>
 
 /** Excluir um contrato e cadastrar um contrato adicional para um cliente já
  *  existente são exclusivos do ADMIN, mesmo o CEO não acessa. */
-export const canDeleteContrato = (u: AuthUser) => isAdmin(u);
+export const canDeleteContrato = (u: AuthUser) => isAdmin(u) || isProfit;
 export const canCreateContratoAdicional = (u: AuthUser) => isAdmin(u);
 
 /** Revisão das propostas de match automático com o D4Sign — exclusivo do ADMIN. */
