@@ -72,6 +72,7 @@ export default async function FranquiasPage() {
           <TableRow>
             <TableHead>Nome</TableHead>
             <TableHead>Cidade/UF</TableHead>
+            <TableHead>Telefone</TableHead>
             <TableHead>Profit responsável</TableHead>
             <TableHead>Clientes ativos</TableHead>
             <TableHead>Status</TableHead>
@@ -86,6 +87,9 @@ export default async function FranquiasPage() {
                 <TableCell className="font-medium">{f.nome}</TableCell>
                 <TableCell>
                   {f.cidade}/{f.estado}
+                </TableCell>
+                <TableCell>
+                  {f.telefone}
                 </TableCell>
                 <TableCell>
                   {profitAtual ? profitAtual.nome : <span className="text-muted-foreground">Sem responsável</span>}
