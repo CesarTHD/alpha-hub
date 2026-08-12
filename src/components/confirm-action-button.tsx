@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function ConfirmActionButton({
   title,
@@ -22,6 +23,7 @@ export function ConfirmActionButton({
   action,
   icon,
   label,
+  tooltip,
   variant = "ghost",
   successMessage = "Feito.",
 }: {
@@ -30,6 +32,7 @@ export function ConfirmActionButton({
   action: () => Promise<{ ok: boolean; message?: string } | void>;
   icon?: React.ReactNode;
   label?: string;
+  tooltip?: string;
   variant?: "ghost" | "destructive" | "outline";
   successMessage?: string;
 }) {
@@ -50,12 +53,25 @@ export function ConfirmActionButton({
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild>
-        <Button variant={variant} size={label ? "sm" : "icon"} aria-label={title}>
-          {icon ?? <Trash2 className="h-4 w-4" />}
-          {label}
-        </Button>
-      </AlertDialogTrigger>
+      {label ? (
+        <AlertDialogTrigger asChild>
+          <Button variant={variant} size="sm" aria-label={title}>
+            {icon ?? <Trash2 className="h-4 w-4" />}
+            {label}
+          </Button>
+        </AlertDialogTrigger>
+      ) : (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <AlertDialogTrigger asChild>
+              <Button variant={variant} size="icon" aria-label={title}>
+                {icon ?? <Trash2 className="h-4 w-4" />}
+              </Button>
+            </AlertDialogTrigger>
+          </TooltipTrigger>
+          <TooltipContent>{tooltip ?? title}</TooltipContent>
+        </Tooltip>
+      )}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>

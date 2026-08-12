@@ -8,6 +8,7 @@ export function ExcluirFranquiaButton({ id, nome }: { id: string; nome: string }
     <ConfirmActionButton
       title={`Excluir ${nome}?`}
       description="A franquia será marcada como excluída (soft delete). Só é possível excluir franquias sem clientes ativos."
+      tooltip="Excluir franquia"
       action={() => excluirFranquia(id)}
       successMessage="Franquia excluída."
     />

@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SubmitButton } from "@/components/submit-button";
 import { trocarProfitResponsavel } from "@/lib/actions/franquia-profit";
 import { useServerAction } from "@/hooks/use-server-action";
@@ -41,11 +42,16 @@ export function TrocaProfitDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Trocar Profit responsável">
-          <UserCog className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DialogTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label="Trocar Profit responsável">
+              <UserCog className="h-4 w-4" />
+            </Button>
+          </DialogTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Trocar Profit responsável</TooltipContent>
+      </Tooltip>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Trocar Profit responsável — {franquiaNome}</DialogTitle>

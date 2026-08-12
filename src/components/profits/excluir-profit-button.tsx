@@ -8,6 +8,7 @@ export function ExcluirProfitButton({ id, nome }: { id: string; nome: string }) 
     <ConfirmActionButton
       title={`Excluir ${nome}?`}
       description="O Profit será marcado como excluído (soft delete). Só é possível excluir Profits que não respondem por franquias ativas."
+      tooltip="Excluir Profit"
       action={() => excluirProfit(id)}
       successMessage="Profit excluído."
     />

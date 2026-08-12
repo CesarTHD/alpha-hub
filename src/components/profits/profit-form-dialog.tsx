@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SubmitButton } from "@/components/submit-button";
 import { createProfit, updateProfit } from "@/lib/actions/profits";
 import { useServerAction } from "@/hooks/use-server-action";
@@ -26,17 +27,24 @@ export function ProfitFormDialog({ profit }: { profit?: Profit }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {profit ? (
-          <Button variant="ghost" size="icon" aria-label="Editar Profit">
-            <Pencil className="h-4 w-4" />
-          </Button>
-        ) : (
+      {profit ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="Editar Profit">
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+          </TooltipTrigger>
+          <TooltipContent>Editar Profit</TooltipContent>
+        </Tooltip>
+      ) : (
+        <DialogTrigger asChild>
           <Button>
             <Plus className="mr-1 h-4 w-4" /> Novo Profit
           </Button>
-        )}
-      </DialogTrigger>
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{profit ? "Editar Profit" : "Novo Profit"}</DialogTitle>

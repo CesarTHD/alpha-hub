@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SubmitButton } from "@/components/submit-button";
 import { createFranquia, updateFranquia } from "@/lib/actions/franquias";
 import { useServerAction } from "@/hooks/use-server-action";
@@ -34,17 +35,24 @@ export function FranquiaFormDialog({ franquia }: { franquia?: Franquia }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {franquia ? (
-          <Button variant="ghost" size="icon" aria-label="Editar franquia">
-            <Pencil className="h-4 w-4" />
-          </Button>
-        ) : (
+      {franquia ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="Editar franquia">
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+          </TooltipTrigger>
+          <TooltipContent>Editar franquia</TooltipContent>
+        </Tooltip>
+      ) : (
+        <DialogTrigger asChild>
           <Button>
             <Plus className="mr-1 h-4 w-4" /> Nova franquia
           </Button>
-        )}
-      </DialogTrigger>
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{franquia ? "Editar franquia" : "Nova franquia"}</DialogTitle>

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -62,17 +63,24 @@ export function UsuarioFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {usuario ? (
-          <Button variant="ghost" size="icon" aria-label="Editar usuário">
-            <Pencil className="h-4 w-4" />
-          </Button>
-        ) : (
+      {usuario ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="Editar usuário">
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+          </TooltipTrigger>
+          <TooltipContent>Editar usuário</TooltipContent>
+        </Tooltip>
+      ) : (
+        <DialogTrigger asChild>
           <Button>
             <Plus className="mr-1 h-4 w-4" /> Novo usuário
           </Button>
-        )}
-      </DialogTrigger>
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{usuario ? "Editar usuário" : "Novo usuário"}</DialogTitle>
