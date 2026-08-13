@@ -23,12 +23,44 @@ export default async function ClientesPage() {
   });
   const profitOptions = profits.map((p) => ({ value: p.id, label: p.nome }));
 
-  const clientesIniciais = await buscarClientes({ nome: "", status: [], franquia: [], profit: [], semD4Sign: false });
+  const cidades = await db.cliente.findMany({
+    where: { deletedAt: null, cidade: { not: null } },
+    select: { cidade: true },
+    distinct: ["cidade"],
+    orderBy: { cidade: "asc" },
+  });
+  const cidadeOptions = cidades
+    .map((c) => c.cidade!.trim())
+    .filter((c) => c.length > 0)
+    .map((c) => ({ value: c, label: c }));
+
+  const estados = await db.cliente.findMany({
+    where: { deletedAt: null, estado: { not: null } },
+    select: { estado: true },
+    distinct: ["estado"],
+    orderBy: { estado: "asc" },
+  });
+  const estadoOptions = estados
+    .map((e) => e.estado!.trim())
+    .filter((e) => e.length > 0)
+    .map((e) => ({ value: e, label: e }));
+
+  const clientesIniciais = await buscarClientes({
+    nome: "",
+    status: [],
+    franquia: [],
+    profit: [],
+    cidade: [],
+    estado: [],
+    semD4Sign: false,
+  });
 
   return (
     <ClientesScreen
       franquiaOptions={franquiaOptions}
       profitOptions={profitOptions}
+      cidadeOptions={cidadeOptions}
+      estadoOptions={estadoOptions}
       podeCriarCliente={canCreateCliente(usuario)}
       clientesIniciais={clientesIniciais}
     />

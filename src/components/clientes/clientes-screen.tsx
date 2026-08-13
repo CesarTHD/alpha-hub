@@ -23,7 +23,15 @@ import { buscarClientes, type ClienteListagemRow } from "@/lib/actions/clientes-
 
 const STORAGE_KEY = "alphahub:filtros:clientes";
 
-const FILTROS_VAZIOS: ClientesFiltros = { nome: "", status: [], franquia: [], profit: [], semD4Sign: false };
+const FILTROS_VAZIOS: ClientesFiltros = {
+  nome: "",
+  status: [],
+  franquia: [],
+  profit: [],
+  cidade: [],
+  estado: [],
+  semD4Sign: false,
+};
 
 const STATUS_OPTIONS = [
   { value: "ATIVO", label: "Ativo" },
@@ -47,6 +55,8 @@ function ehVazio(filtros: ClientesFiltros) {
     filtros.status.length === 0 &&
     filtros.franquia.length === 0 &&
     filtros.profit.length === 0 &&
+    filtros.cidade.length === 0 &&
+    filtros.estado.length === 0 &&
     !filtros.semD4Sign
   );
 }
@@ -61,6 +71,8 @@ function carregarFiltrosSalvos(): ClientesFiltros | null {
       status: Array.isArray(salvos.status) ? salvos.status : [],
       franquia: Array.isArray(salvos.franquia) ? salvos.franquia : [],
       profit: Array.isArray(salvos.profit) ? salvos.profit : [],
+      cidade: Array.isArray(salvos.cidade) ? salvos.cidade : [],
+      estado: Array.isArray(salvos.estado) ? salvos.estado : [],
       semD4Sign: Boolean(salvos.semD4Sign),
     };
     return ehVazio(filtros) ? null : filtros;
@@ -72,11 +84,15 @@ function carregarFiltrosSalvos(): ClientesFiltros | null {
 export function ClientesScreen({
   franquiaOptions,
   profitOptions,
+  cidadeOptions,
+  estadoOptions,
   podeCriarCliente,
   clientesIniciais,
 }: {
   franquiaOptions: { value: string; label: string }[];
   profitOptions: { value: string; label: string }[];
+  cidadeOptions: { value: string; label: string }[];
+  estadoOptions: { value: string; label: string }[];
   podeCriarCliente: boolean;
   clientesIniciais: ClienteListagemRow[];
 }) {
@@ -108,6 +124,8 @@ export function ClientesScreen({
       status: formData.getAll("status") as string[],
       franquia: formData.getAll("franquia") as string[],
       profit: formData.getAll("profit") as string[],
+      cidade: formData.getAll("cidade") as string[],
+      estado: formData.getAll("estado") as string[],
       semD4Sign: formData.get("semD4Sign") === "1",
     };
     setFiltros(novosFiltros);
@@ -138,6 +156,8 @@ export function ClientesScreen({
     filtros.status.forEach((s) => params.append("status", s));
     filtros.franquia.forEach((f) => params.append("franquia", f));
     filtros.profit.forEach((p) => params.append("profit", p));
+    filtros.cidade.forEach((c) => params.append("cidade", c));
+    filtros.estado.forEach((e) => params.append("estado", e));
     if (filtros.semD4Sign) params.set("semD4Sign", "1");
     params.set("formato", formato);
     return `/clientes/export?${params.toString()}`;
@@ -211,6 +231,24 @@ export function ClientesScreen({
                 name="profit"
                 options={profitOptions}
                 defaultValues={filtros.profit}
+                placeholder="Todos"
+              />
+            </div>
+            <div className="space-y-1 space-x-2">
+              <label className="text-xs text-muted-foreground">Cidade</label>
+              <MultiSelectFilter
+                name="cidade"
+                options={cidadeOptions}
+                defaultValues={filtros.cidade}
+                placeholder="Todas"
+              />
+            </div>
+            <div className="space-y-1 space-x-2">
+              <label className="text-xs text-muted-foreground">Estado</label>
+              <MultiSelectFilter
+                name="estado"
+                options={estadoOptions}
+                defaultValues={filtros.estado}
                 placeholder="Todos"
               />
             </div>

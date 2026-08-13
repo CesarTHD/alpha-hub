@@ -6,6 +6,8 @@ export type ClientesFiltros = {
   status: string[];
   franquia: string[];
   profit: string[];
+  cidade: string[];
+  estado: string[];
   semD4Sign: boolean;
 };
 
@@ -32,6 +34,12 @@ export function clientesWhere(usuario: AuthUser, filtros: ClientesFiltros): Pris
         },
       },
     });
+  }
+  if (filtros.cidade.length > 0) {
+    partes.push({ cidade: { in: filtros.cidade } });
+  }
+  if (filtros.estado.length > 0) {
+    partes.push({ estado: { in: filtros.estado } });
   }
   if (filtros.semD4Sign) {
     partes.push({ linkContratoD4Sign: null });
