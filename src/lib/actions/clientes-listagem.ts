@@ -1,0 +1,59 @@
+"use server";
+
+import { db } from "@/lib/db";
+import { getCurrentUser } from "@/lib/current-user";
+import { clientesWhere, type ClientesFiltros } from "@/lib/clientes-filtros";
+import { marcarContratosVencidos } from "@/lib/contrato-lifecycle";
+
+export type ClienteListagemRow = {
+  id: string;
+  nome: string;
+  franquiaNome: string | null;
+  franquiaAtiva: boolean;
+  profitNome: string | null;
+  plano: string | null;
+  valorMensal: string | null;
+  status: string | null;
+};
+
+export async function buscarClientes(filtros: ClientesFiltros): Promise<ClienteListagemRow[]> {
+  const usuario = await getCurrentUser();
+  await marcarContratosVencidos();
+
+  const where = clientesWhere(usuario, filtros);
+
+  const clientesEncontrados = await db.cliente.findMany({
+    where,
+    orderBy: { nome: "asc" },
+    include: {
+      carteiraHistorico: {
+        orderBy: { dataInicio: "desc" },
+        take: 1,
+        include: {
+          franquia: { include: { historicoProfit: { where: { ativo: true }, include: { profit: true } } } },
+        },
+      },
+      contratos: { where: { deletedAt: null }, orderBy: { inicioContrato: "desc" }, take: 1 },
+    },
+  });
+
+  // Filtra pelo status do contrato mais recente — o mesmo que a coluna "Status" exibe.
+  const clientes = filtros.status.length > 0
+    ? clientesEncontrados.filter((c) => c.contratos[0] && filtros.status.includes(c.contratos[0].status))
+    : clientesEncontrados;
+
+  return clientes.map((c) => {
+    const contrato = c.contratos[0];
+    const carteira = c.carteiraHistorico[0];
+    return {
+      id: c.id,
+      nome: c.nome,
+      franquiaNome: carteira?.franquia.nome ?? null,
+      franquiaAtiva: carteira?.ativo ?? true,
+      profitNome: carteira?.franquia.historicoProfit[0]?.profit.nome ?? null,
+      plano: contrato?.plano ?? null,
+      valorMensal: contrato ? contrato.valorMensal.toString() : null,
+      status: contrato?.status ?? null,
+    };
+  });
+}

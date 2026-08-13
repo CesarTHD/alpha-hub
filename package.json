@@ -14,7 +14,8 @@
     "db:studio": "prisma studio",
     "import:legado": "tsx scripts/import-legado.ts",
     "import:carteira-profits": "tsx scripts/import-carteira-profits.ts",
-    "d4sign:match": "tsx scripts/matching-d4sign.ts"
+    "d4sign:match": "tsx scripts/matching-d4sign.ts",
+    "d4sign:auto-aplicar": "tsx scripts/auto-aplicar-d4sign.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.0",
