@@ -50,8 +50,16 @@ const statusVariant: Record<string, "default" | "secondary" | "destructive" | "o
 
 export const dynamic = "force-dynamic";
 
-export default async function ClienteDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ClienteDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ voltar?: string }>;
+}) {
   const { id } = await params;
+  const { voltar } = await searchParams;
+  const voltarHref = voltar ? `/clientes?${voltar}` : "/clientes";
   const usuario = await getCurrentUser();
   await marcarContratosVencidos();
 
@@ -87,7 +95,7 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
     <div className="space-y-6">
       <div>
         <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2">
-          <Link href="/clientes">
+          <Link href={voltarHref}>
             <ArrowLeft className="mr-1 h-4 w-4" /> Clientes
           </Link>
         </Button>

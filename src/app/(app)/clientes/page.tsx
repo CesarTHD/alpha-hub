@@ -101,16 +101,23 @@ export default async function ClientesPage({
     ? clientesEncontrados.filter((c) => c.contratos[0] && status.includes(c.contratos[0].status))
     : clientesEncontrados;
 
-  function exportHref(formato: "csv" | "xlsx") {
+  function filtrosParams() {
     const params = new URLSearchParams();
     if (nome) params.set("nome", nome);
     status.forEach((s) => params.append("status", s));
     franquia.forEach((f) => params.append("franquia", f));
     profit.forEach((p) => params.append("profit", p));
     if (semD4Sign) params.set("semD4Sign", "1");
+    return params;
+  }
+
+  function exportHref(formato: "csv" | "xlsx") {
+    const params = filtrosParams();
     params.set("formato", formato);
     return `/clientes/export?${params.toString()}`;
   }
+
+  const filtrosQueryString = filtrosParams().toString();
 
   return (
     <div className="space-y-6">
@@ -224,7 +231,14 @@ export default async function ClientesPage({
             return (
               <TableRow key={c.id} className="cursor-pointer">
                 <TableCell className="font-medium">
-                  <Link href={`/clientes/${c.id}`} className="hover:underline">
+                  <Link
+                    href={
+                      filtrosQueryString
+                        ? `/clientes/${c.id}?voltar=${encodeURIComponent(filtrosQueryString)}`
+                        : `/clientes/${c.id}`
+                    }
+                    className="hover:underline"
+                  >
                     {c.nome}
                   </Link>
                 </TableCell>
