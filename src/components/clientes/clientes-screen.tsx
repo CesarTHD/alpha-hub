@@ -335,7 +335,7 @@ export function ClientesScreen({
               <TableCell>
                 {c.profitNome ?? <span className="text-muted-foreground">—</span>}
               </TableCell>
-              <TableCell className="text-center">
+              <TableCell className="">
                 <span
                   className={`px-2 rounded-2xl text-xs text-center ${
                     c.plano?.toUpperCase() === "SILVER"
