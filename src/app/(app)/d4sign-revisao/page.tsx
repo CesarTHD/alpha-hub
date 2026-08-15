@@ -40,7 +40,7 @@ export default async function D4SignRevisaoPage({
 
   const clienteWhere =
     franquia.length > 0 || profit.length > 0
-      ? clientesWhere(usuario, { nome: "", status: [], franquia, profit, cidade: [], estado: [], semD4Sign: false })
+      ? clientesWhere(usuario, { nome: "", status: [], tipo: [], franquia, profit, cidade: [], estado: [], semD4Sign: false })
       : undefined;
 
   const propostas = await db.propostaD4Sign.findMany({

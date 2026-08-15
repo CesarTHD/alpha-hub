@@ -37,10 +37,13 @@ export async function buscarClientes(filtros: ClientesFiltros): Promise<ClienteL
     },
   });
 
-  // Filtra pelo status do contrato mais recente — o mesmo que a coluna "Status" exibe.
-  const clientes = filtros.status.length > 0
-    ? clientesEncontrados.filter((c) => c.contratos[0] && filtros.status.includes(c.contratos[0].status))
-    : clientesEncontrados;
+  // Filtra pelo status/tipo do contrato mais recente — o mesmo que as colunas "Status"/"Tipo" exibem.
+  const clientes = clientesEncontrados.filter((c) => {
+    const contrato = c.contratos[0];
+    if (filtros.status.length > 0 && (!contrato || !filtros.status.includes(contrato.status))) return false;
+    if (filtros.tipo.length > 0 && (!contrato || !filtros.tipo.includes(contrato.tipoContrato))) return false;
+    return true;
+  });
 
   return clientes.map((c) => {
     const contrato = c.contratos[0];

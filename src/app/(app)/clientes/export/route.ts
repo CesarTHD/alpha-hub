@@ -11,6 +11,7 @@ export async function GET(request: Request) {
 
   const nome = searchParams.get("nome") ?? "";
   const status = searchParams.getAll("status");
+  const tipo = searchParams.getAll("tipo");
   const franquia = searchParams.getAll("franquia");
   const profit = searchParams.getAll("profit");
   const cidade = searchParams.getAll("cidade");
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
   const semD4Sign = searchParams.get("semD4Sign") === "1";
   const formato = searchParams.get("formato") === "xlsx" ? "xlsx" : "csv";
 
-  const where = clientesWhere(usuario, { nome, status, franquia, profit, cidade, estado, semD4Sign });
+  const where = clientesWhere(usuario, { nome, status, tipo, franquia, profit, cidade, estado, semD4Sign });
 
   const clientesEncontrados = await db.cliente.findMany({
     where,
@@ -35,10 +36,13 @@ export async function GET(request: Request) {
     },
   });
 
-  // Mesmo filtro de status (pelo contrato mais recente) usado na tela de clientes.
-  const clientes = status.length > 0
-    ? clientesEncontrados.filter((c) => c.contratos[0] && status.includes(c.contratos[0].status))
-    : clientesEncontrados;
+  // Mesmo filtro de status/tipo (pelo contrato mais recente) usado na tela de clientes.
+  const clientes = clientesEncontrados.filter((c) => {
+    const contrato = c.contratos[0];
+    if (status.length > 0 && (!contrato || !status.includes(contrato.status))) return false;
+    if (tipo.length > 0 && (!contrato || !tipo.includes(contrato.tipoContrato))) return false;
+    return true;
+  });
 
   const rows: ClienteExportRow[] = clientes.map((c) => {
     const contratoAtual = c.contratos[0];

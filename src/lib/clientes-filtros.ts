@@ -4,6 +4,7 @@ import { clienteFranquiaScopeWhere, type AuthUser } from "@/lib/rbac";
 export type ClientesFiltros = {
   nome: string;
   status: string[];
+  tipo: string[];
   franquia: string[];
   profit: string[];
   cidade: string[];

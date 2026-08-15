@@ -26,6 +26,7 @@ const STORAGE_KEY = "alphahub:filtros:clientes";
 const FILTROS_VAZIOS: ClientesFiltros = {
   nome: "",
   status: [],
+  tipo: [],
   franquia: [],
   profit: [],
   cidade: [],
@@ -41,6 +42,14 @@ const STATUS_OPTIONS = [
   { value: "CHURN", label: "Churn" },
 ];
 
+const TIPO_OPTIONS = [
+  { value: "MENSAL", label: "Mensal" },
+  { value: "TRIMESTRAL", label: "Trimestral" },
+  { value: "QUADRIMESTRAL", label: "Quadrimestral" },
+  { value: "SEMESTRAL", label: "Semestral" },
+  { value: "ANUAL", label: "Anual" },
+];
+
 const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   ATIVO: "default",
   PAUSADO: "outline",
@@ -53,6 +62,7 @@ function ehVazio(filtros: ClientesFiltros) {
   return (
     !filtros.nome &&
     filtros.status.length === 0 &&
+    filtros.tipo.length === 0 &&
     filtros.franquia.length === 0 &&
     filtros.profit.length === 0 &&
     filtros.cidade.length === 0 &&
@@ -69,6 +79,7 @@ function carregarFiltrosSalvos(): ClientesFiltros | null {
     const filtros: ClientesFiltros = {
       nome: typeof salvos.nome === "string" ? salvos.nome : "",
       status: Array.isArray(salvos.status) ? salvos.status : [],
+      tipo: Array.isArray(salvos.tipo) ? salvos.tipo : [],
       franquia: Array.isArray(salvos.franquia) ? salvos.franquia : [],
       profit: Array.isArray(salvos.profit) ? salvos.profit : [],
       cidade: Array.isArray(salvos.cidade) ? salvos.cidade : [],
@@ -122,6 +133,7 @@ export function ClientesScreen({
     const novosFiltros: ClientesFiltros = {
       nome: (formData.get("nome") as string) ?? "",
       status: formData.getAll("status") as string[],
+      tipo: formData.getAll("tipo") as string[],
       franquia: formData.getAll("franquia") as string[],
       profit: formData.getAll("profit") as string[],
       cidade: formData.getAll("cidade") as string[],
@@ -154,6 +166,7 @@ export function ClientesScreen({
     const params = new URLSearchParams();
     if (filtros.nome) params.set("nome", filtros.nome);
     filtros.status.forEach((s) => params.append("status", s));
+    filtros.tipo.forEach((t) => params.append("tipo", t));
     filtros.franquia.forEach((f) => params.append("franquia", f));
     filtros.profit.forEach((p) => params.append("profit", p));
     filtros.cidade.forEach((c) => params.append("cidade", c));
@@ -213,6 +226,15 @@ export function ClientesScreen({
                 name="status"
                 options={STATUS_OPTIONS}
                 defaultValues={filtros.status}
+                placeholder="Todos"
+              />
+            </div>
+            <div className="space-y-1 space-x-2">
+              <label className="text-xs text-muted-foreground">Tipo</label>
+              <MultiSelectFilter
+                name="tipo"
+                options={TIPO_OPTIONS}
+                defaultValues={filtros.tipo}
                 placeholder="Todos"
               />
             </div>

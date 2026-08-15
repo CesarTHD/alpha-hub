@@ -48,6 +48,7 @@ export default async function ClientesPage() {
   const clientesIniciais = await buscarClientes({
     nome: "",
     status: [],
+    tipo: [],
     franquia: [],
     profit: [],
     cidade: [],
