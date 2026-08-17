@@ -19,7 +19,8 @@ export type HealthScoreBreakdown = {
 
 /** Normaliza uma nota na escala 1-10 do formulário para 0-100. */
 function normalizar(nota: number) {
-  return ((nota - 1) / 9) * 100;
+  // return ((nota - 1) / 9) * 100;
+  return nota * 10;
 }
 
 /** Normaliza cada bloco de perguntas (escala 1-10) para 0-100. */
