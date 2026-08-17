@@ -250,7 +250,7 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
   const vencendo30 = snapshotFiltrado.filter(
     (d) => d.ativo && d.vencimentoDias !== null && d.vencimentoDias >= 0 && d.vencimentoDias <= 30,
   ).length;
-  const vencidos = snapshotFiltrado.filter((d) => d.ativo && d.faixaVencimento === "Vencido").length;
+  const vencidos = snapshotFiltrado.filter((d) => d.vencido).length;
 
   const porStatus = useMemo(() => {
     const map = new Map<string, number>();
@@ -415,7 +415,9 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
   const contratosEmRisco = useMemo(
     () =>
       snapshotFiltrado
-        .filter((d) => d.ativo && d.vencimentoDias !== null && d.vencimentoDias <= 30 && !d.renovacaoAutomatica)
+        .filter(
+          (d) => (d.ativo || d.vencido) && d.vencimentoDias !== null && d.vencimentoDias <= 30 && !d.renovacaoAutomatica,
+        )
         .sort((a, b) => (a.vencimentoDias ?? 0) - (b.vencimentoDias ?? 0)),
     [snapshotFiltrado],
   );

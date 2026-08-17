@@ -43,6 +43,7 @@ export type ContratoRow = {
   dataSaida: Date | null;
   renovacaoAutomatica: boolean;
   ativo: boolean;
+  vencido: boolean;
   pausado: boolean;
   churn: boolean;
   vencimentoDias: number | null;

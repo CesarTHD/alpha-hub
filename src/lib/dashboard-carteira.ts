@@ -87,6 +87,7 @@ export async function getLinhasCarteira(scope: DashboardCarteiraScope = null): P
       dataSaida: c.dataSaida,
       renovacaoAutomatica: c.renovacaoAutomatica,
       ativo: c.status === "ATIVO",
+      vencido: c.status === "VENCIDO",
       pausado: c.status === "PAUSADO",
       churn: c.status === "CHURN",
       vencimentoDias,
