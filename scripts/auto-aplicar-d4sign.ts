@@ -46,7 +46,7 @@ import { extrairContratoDePdf } from "@/lib/actions/contrato-pdf-pipeline";
 import { compararContrato, type ContratoAtual } from "@/lib/contrato-comparacao";
 import type { ContratoExtraido } from "@/lib/contrato-extracao";
 
-const DOWNLOADS_PADRAO = 50; // conservador: não dá pra confirmar a cota real via headers da API do D4Sign.
+const DOWNLOADS_PADRAO = 100; // conservador: não dá pra confirmar a cota real via headers da API do D4Sign.
 const DIVERGENCIAS_TOLERADAS = new Set(["Renovação automática", "Início do contrato"]);
 const LIMITE_DIAS_INICIO = 30;
 
