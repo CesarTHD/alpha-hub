@@ -21,6 +21,7 @@ enum Role {
   PROFIT
   FRANQUEADO
   OPERACIONAL
+  NPS
 }
 
 model Usuario {
@@ -40,6 +41,7 @@ model Usuario {
   eventosResponsavel       Evento[]         @relation("EventoUsuarioResponsavel")
   auditorias               Auditoria[]
   propostasD4SignRevisadas PropostaD4Sign[] @relation("PropostaD4SignRevisadaPor")
+  npsRespostasVinculadas   NpsResposta[]    @relation("NpsRespostaVinculadaPor")
 
   @@index([franquiaId])
   @@map("usuarios")
@@ -80,6 +82,7 @@ model Franquia {
   historicoProfit   FranquiaProfitHistorico[]
   historicoCarteira ClienteCarteira[]
   usuarios          Usuario[]
+  npsRespostas      NpsResposta[]
 
   @@map("franquias")
 }
@@ -133,6 +136,7 @@ model Cliente {
   contratos         Contrato[]
   eventos           Evento[]
   propostasD4Sign   PropostaD4Sign[]
+  npsRespostas      NpsResposta[]
 
   @@map("clientes")
 }
@@ -298,6 +302,51 @@ model PropostaD4Sign {
   @@unique([clienteId, uuidDocumento])
   @@index([status])
   @@map("propostas_d4sign")
+}
+
+// ---------------------------------------------------------------------------
+// NPS — respostas do formulário de satisfação por Franquia. Quem responde
+// não é identificado como Cliente no momento do envio (formulário público,
+// sem login); clienteId só é preenchido quando um usuário NPS/ADMIN vincula
+// manualmente a resposta a um cliente da base, usando nomeEmpresa/whatsapp
+// como pista.
+// ---------------------------------------------------------------------------
+
+model NpsResposta {
+  id         String  @id @default(cuid())
+  franquiaId String  @map("franquia_id")
+  clienteId  String? @map("cliente_id")
+
+  nomeEmpresa String @map("nome_empresa")
+  whatsapp    String
+
+  nps           Int
+  npsComentario String? @map("nps_comentario")
+
+  csatAtendimento Int     @map("csat_atendimento")
+  csatResultado   Int     @map("csat_resultado")
+  csatEntregas    Int     @map("csat_entregas")
+  csatComentario  String? @map("csat_comentario")
+
+  cevSeguranca   Int @map("cev_seguranca")
+  cevValorizacao Int @map("cev_valorizacao")
+
+  cesFacilidade Int     @map("ces_facilidade")
+  cesComentario String? @map("ces_comentario")
+
+  perguntaFinal String? @map("pergunta_final")
+
+  vinculadoPorId String?   @map("vinculado_por")
+  vinculadoEm    DateTime? @map("vinculado_em")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  franquia     Franquia @relation(fields: [franquiaId], references: [id])
+  cliente      Cliente? @relation(fields: [clienteId], references: [id])
+  vinculadoPor Usuario? @relation("NpsRespostaVinculadaPor", fields: [vinculadoPorId], references: [id])
+
+  @@index([franquiaId])
+  @@index([clienteId])
+  @@map("nps")
 }
 
 // ---------------------------------------------------------------------------

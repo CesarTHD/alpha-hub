@@ -8,7 +8,7 @@ import { canManageUsers } from "@/lib/rbac";
 import type { ActionState } from "./action-state";
 import { optionalText } from "./zod-helpers";
 
-const ROLES = ["ADMIN", "CEO", "DIRETOR", "PROFIT", "FRANQUEADO", "OPERACIONAL"] as const;
+const ROLES = ["ADMIN", "CEO", "DIRETOR", "PROFIT", "FRANQUEADO", "OPERACIONAL", "NPS"] as const;
 const ROLES_COM_FRANQUIA = ["FRANQUEADO", "OPERACIONAL"];
 
 const usuarioSchema = z

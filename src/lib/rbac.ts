@@ -8,8 +8,13 @@ export const isDiretor = (u: AuthUser) => u.role === "DIRETOR";
 export const isProfit = (u: AuthUser) => u.role === "PROFIT";
 export const isFranqueado = (u: AuthUser) => u.role === "FRANQUEADO";
 export const isOperacional = (u: AuthUser) => u.role === "OPERACIONAL";
+export const isNps = (u: AuthUser) => u.role === "NPS";
 
 const isAdminOrCEO = (u: AuthUser) => isAdmin(u) || isCEO(u);
+
+/** Tela de gestão de NPS (gerar formulários por franquia, ver HealthScore,
+ *  vincular respostas a clientes) — exclusiva do papel NPS, além do ADMIN. */
+export const canAccessNpsScreen = (u: AuthUser) => isAdmin(u) || isNps(u);
 
 /** Gestão de usuários/permissões — exclusivo do ADMIN, mesmo o CEO não acessa. */
 export const canManageUsers = (u: AuthUser) => isAdmin(u);
@@ -51,7 +56,7 @@ export const canRegisterEvento = (u: AuthUser) =>
   isAdminOrCEO(u) || isProfit(u) || isFranqueado(u) || isOperacional(u);
 
 export function canViewDashboard(u: AuthUser): "full" | "franquia" | "none" {
-  if (isAdminOrCEO(u) || isDiretor(u) || isProfit(u)) return "full";
+  if (isAdminOrCEO(u) || isDiretor(u) || isNps(u) || isProfit(u)) return "full";
   if (isFranqueado(u)) return "franquia";
   return "none"; // OPERACIONAL
 }

@@ -33,6 +33,7 @@ const ROLE_LABEL: Record<Role, string> = {
   PROFIT: "Profit",
   FRANQUEADO: "Franqueado",
   OPERACIONAL: "Operacional",
+  NPS: "NPS",
 };
 
 const ROLES_COM_FRANQUIA: Role[] = ["FRANQUEADO", "OPERACIONAL"];
