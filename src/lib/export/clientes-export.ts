@@ -12,8 +12,10 @@ export type ClienteExportRow = {
   profit: string;
   plano: string;
   valorMensal: number | null;
+  vencimento: string;
   status: string;
   quantidadeContratos: number;
+  linkContrato: string;
 };
 
 const HEADERS = [
@@ -27,8 +29,10 @@ const HEADERS = [
   "Profit",
   "Plano",
   "Valor mensal",
+  "Vencimento",
   "Status",
   "Qtd. contratos",
+  "Contrato",
 ];
 
 function toRowValues(row: ClienteExportRow): (string | number)[] {
@@ -43,8 +47,10 @@ function toRowValues(row: ClienteExportRow): (string | number)[] {
     row.profit,
     row.plano,
     row.valorMensal ?? "",
+    row.vencimento,
     row.status,
     row.quantidadeContratos,
+    row.linkContrato,
   ];
 }
 

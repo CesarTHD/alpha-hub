@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/current-user";
 import { clientesWhere } from "@/lib/clientes-filtros";
+import { formatDate } from "@/lib/format";
 import { buildClientesCsv, buildClientesXlsx, type ClienteExportRow } from "@/lib/export/clientes-export";
 
 export const dynamic = "force-dynamic";
@@ -58,8 +59,10 @@ export async function GET(request: Request) {
       profit: carteira?.franquia.historicoProfit[0]?.profit.nome ?? "",
       plano: contratoAtual?.plano ?? "",
       valorMensal: contratoAtual ? Number(contratoAtual.valorMensal) : null,
+      vencimento: contratoAtual?.fimContrato ? formatDate(contratoAtual.fimContrato) : "",
       status: contratoAtual?.status ?? "",
       quantidadeContratos: c.contratos.length,
+      linkContrato: c.linkContratoD4Sign ?? "",
     };
   });
 
