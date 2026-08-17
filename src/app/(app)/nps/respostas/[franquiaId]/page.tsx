@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 function Metrica({ label, value }: { label: string; value: number | null }) {
   return (
-    <div className="rounded-lg border p-4 text-center">
+    <div className={`${value != null && (value >= 9 ? "bg-green-300" : value >= 7 ? "bg-yellow-300" : "bg-red-300")} rounded-lg border p-4 text-center`}>
       <p className="text-2xl font-semibold">{value ?? "—"}</p>
       <p className="text-xs text-muted-foreground">{label}</p>
     </div>
