@@ -6,6 +6,7 @@ import { calcularHealthScoreBreakdown } from "@/lib/nps/health-score";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { VincularClienteDialog } from "@/components/nps/vincular-cliente-dialog";
+import { RespostaDetalheDialog } from "@/components/nps/resposta-detalhe-dialog";
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +71,8 @@ export default async function NpsRespostasPage({
                 <p className="mt-1 text-sm">
                   {r.cliente ? (
                     <>
-                      Vinculado a <span className="font-medium">{r.cliente.nome}</span>
+                      Vinculado a{" "}
+                      <RespostaDetalheDialog clienteNome={r.cliente.nome} resposta={r} />
                     </>
                   ) : (
                     <span className="text-muted-foreground">Não vinculado</span>
