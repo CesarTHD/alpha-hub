@@ -78,6 +78,10 @@ const brlFull = (v: number) => v.toLocaleString("pt-BR", { style: "currency", cu
 const ESTE_MES = "Este mês";
 const FAIXA_ORDEM = ["Vencido", "Até 30 dias", "31 a 60 dias", "61 a 90 dias", "Mais de 90 dias", "Recorrente"];
 
+// MRR conta clientes Ativos, Pausados e Vencidos — só Churn/Encerrado saem da conta,
+// diferente de `baseAtivosRows` (Ativos/TCV), que segue o status "ao vivo" estrito.
+const MRR_STATUSES = new Set(["ATIVO", "PAUSADO", "VENCIDO"]);
+
 function venceEsteMes(vencimentoDias: number | null): boolean {
   if (vencimentoDias === null) return false;
   const hoje = new Date();
@@ -208,14 +212,21 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
   }, [historyFiltrado, refEndMs]);
 
   const ativosIds = useMemo(() => new Set(baseAtivosRows.map((d) => d.clienteId)), [baseAtivosRows]);
-  const ativosMRRIds = useMemo(
-    () => new Set(baseAtivosRows.filter((d) => d.tipoContrato === "MENSAL").map((d) => d.clienteId)),
-    [baseAtivosRows],
-  );
   const ativosTCVIds = useMemo(
     () => new Set(baseAtivosRows.filter((d) => d.tipoContrato !== "MENSAL").map((d) => d.clienteId)),
     [baseAtivosRows],
   );
+
+  const baseMrrRows = useMemo(() => {
+    const source = refEndMs === null ? historyFiltrado.filter((d) => MRR_STATUSES.has(d.status)) : baseAtivosRows;
+    return source.filter((d) => d.tipoContrato === "MENSAL");
+  }, [historyFiltrado, refEndMs, baseAtivosRows]);
+  const ativosMRRIds = useMemo(() => new Set(baseMrrRows.map((d) => d.clienteId)), [baseMrrRows]);
+  const valorMrrPorCliente = useMemo(() => {
+    const map = new Map<string, number>();
+    baseMrrRows.forEach((d) => map.set(d.clienteId, (map.get(d.clienteId) ?? 0) + d.valorMensal));
+    return map;
+  }, [baseMrrRows]);
 
   const ativos = ativosIds.size;
   const ativosMRR = ativosMRRIds.size;
@@ -237,9 +248,7 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
   const pausados = snapshotFiltrado.filter((d) => d.pausado).length;
   const franquias = new Set(snapshotFiltrado.map((d) => d.franquia)).size;
 
-  const mrr = baseAtivosRows
-    .filter((d) => d.tipoContrato === "MENSAL")
-    .reduce((s, d) => s + d.valorMensal, 0);
+  const mrr = baseMrrRows.reduce((s, d) => s + d.valorMensal, 0);
   const valorContratoTCV = baseAtivosRows
     .filter((d) => d.tipoContrato !== "MENSAL")
     .reduce((s, d) => s + d.valorContrato, 0);
@@ -280,14 +289,14 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
     snapshotFiltrado.forEach((d) => {
       const cur = map.get(d.franquia) ?? { clientes: 0, mrr: 0 };
       cur.clientes += 1;
-      if (ativosMRRIds.has(d.clienteId)) cur.mrr += valorMensalAtivoPorCliente.get(d.clienteId) ?? 0;
+      if (ativosMRRIds.has(d.clienteId)) cur.mrr += valorMrrPorCliente.get(d.clienteId) ?? 0;
       map.set(d.franquia, cur);
     });
     return Array.from(map.entries())
       .map(([franquia, v]) => ({ franquia, ...v }))
       .sort((a, b) => b.mrr - a.mrr)
       .slice(0, 10);
-  }, [snapshotFiltrado, ativosMRRIds, valorMensalAtivoPorCliente]);
+  }, [snapshotFiltrado, ativosMRRIds, valorMrrPorCliente]);
 
   const porPlano = useMemo(() => {
     const map = new Map<string, { clientes: number; mrr: number }>();
