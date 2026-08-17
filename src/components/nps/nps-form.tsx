@@ -169,7 +169,7 @@ export function NpsForm({ franquiaId, franquiaNome }: { franquiaId: string; fran
         {step === "intro" && (
           <div className="flex flex-1 flex-col items-center justify-center py-6 text-center sm:py-10">
             <AlphaMarkImage size={80} />
-            <h1 className="mt-6 text-xl font-bold text-white sm:text-2xl">O que você acha da {franquiaNome}?</h1>
+            <h1 className="mt-6 text-xl font-bold text-white sm:text-2xl">Pesquisa de Satisfação da Assessoria Alpha</h1>
             <p className="mt-3 max-w-xs text-sm text-neutral-400">
               Sua opinião ajuda a gente a melhorar o marketing do seu restaurante. Leva menos de 2
               minutos.
