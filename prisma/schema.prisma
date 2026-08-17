@@ -287,6 +287,10 @@ model PropostaD4Sign {
   createdAt     DateTime             @default(now()) @map("created_at")
   revisadoEm    DateTime?            @map("revisado_em")
   revisadoPorId String?              @map("revisado_por")
+  /// Quando scripts/auto-aplicar-d4sign.ts baixou e comparou esta proposta pela última vez.
+  /// Continua PENDENTE (ainda precisa de revisão manual), mas já consumiu cota de download —
+  /// o script pula quem já tem isso preenchido, a menos que rode com --recheck.
+  verificadoAutoEm DateTime? @map("verificado_auto_em")
 
   cliente     Cliente  @relation(fields: [clienteId], references: [id])
   revisadoPor Usuario? @relation("PropostaD4SignRevisadaPor", fields: [revisadoPorId], references: [id])

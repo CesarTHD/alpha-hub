@@ -24,9 +24,17 @@
  * reativa de scripts/matching-d4sign.ts). Rode de novo mais tarde pra continuar de onde parou
  * — propostas já aplicadas/rejeitadas não são reprocessadas.
  *
+ * Toda proposta que consome um download (baixada e comparada, mesmo em --dry-run) e continua
+ * PENDENTE — porque a divergência não é tolerada, faltou CPF/CNPJ, deu erro de extração, etc. —
+ * fica marcada com `verificadoAutoEm`. Rodadas seguintes pulam quem já tem essa marca (mesmo com
+ * a cota de download resetada), pra não gastar cota reprocessando as mesmas propostas que já
+ * foram pra revisão manual em /d4sign-revisao. Use --recheck pra ignorar a marca e reprocessar
+ * tudo de novo (ex.: depois de corrigir um bug de extração).
+ *
  * Uso:
  *   npm run d4sign:auto-aplicar -- --dry-run
  *   npm run d4sign:auto-aplicar -- --max-downloads=50
+ *   npm run d4sign:auto-aplicar -- --recheck
  *   npm run d4sign:auto-aplicar
  */
 import "dotenv/config";
@@ -72,8 +80,15 @@ function podeAplicarAutomaticamente(
   });
 }
 
+/** Marca que essa proposta já consumiu um download e foi comparada — mesmo continuando
+ * PENDENTE, rodadas futuras (sem --recheck) não vão baixar/comparar ela de novo. */
+async function marcarVerificado(id: string) {
+  await db.propostaD4Sign.update({ where: { id }, data: { verificadoAutoEm: new Date() } });
+}
+
 async function main() {
   const dryRun = process.argv.includes("--dry-run");
+  const recheck = process.argv.includes("--recheck");
   let orcamentoDownloads = parseMaxDownloads();
 
   const usuarioSistema = await db.usuario.findFirst({
@@ -87,8 +102,9 @@ async function main() {
     console.log(`Atribuindo as aplicações automáticas a: ${usuarioSistema.nome}.`);
   }
 
+  const totalPendentes = await db.propostaD4Sign.count({ where: { status: "PENDENTE" } });
   const propostas = await db.propostaD4Sign.findMany({
-    where: { status: "PENDENTE" },
+    where: { status: "PENDENTE", ...(recheck ? {} : { verificadoAutoEm: null }) },
     orderBy: { createdAt: "asc" },
     include: {
       cliente: {
@@ -101,7 +117,14 @@ async function main() {
   // Confiança ALTA primeiro — mesma ordem da tela de revisão.
   propostas.sort((a, b) => (a.confianca === b.confianca ? 0 : a.confianca === "ALTA" ? -1 : 1));
 
-  console.log(`${propostas.length} proposta(s) PENDENTE. Orçamento de downloads: ${orcamentoDownloads}.`);
+  const jaVerificadas = totalPendentes - propostas.length;
+  console.log(
+    `${totalPendentes} proposta(s) PENDENTE` +
+      (jaVerificadas > 0 && !recheck
+        ? ` (${jaVerificadas} já verificada(s) em rodadas anteriores, pulando — use --recheck pra reprocessar)`
+        : "") +
+      `. ${propostas.length} a processar nesta rodada. Orçamento de downloads: ${orcamentoDownloads}.`,
+  );
 
   let aplicadas = 0;
   let semContrato = 0;
@@ -131,6 +154,7 @@ async function main() {
       if (!resultado || !resultado.ok || !resultado.data) {
         console.log(`  [${cliente.nome}] não deu pra interpretar o PDF: ${resultado?.message}`);
         erroDownloadOuExtracao++;
+        await marcarVerificado(proposta.id);
         continue;
       }
       extraido = resultado.data;
@@ -142,6 +166,7 @@ async function main() {
       }
       console.log(`  [${cliente.nome}] falha ao baixar "${proposta.nomeDocumento}": ${err instanceof Error ? err.message : err}`);
       erroDownloadOuExtracao++;
+      await marcarVerificado(proposta.id);
       continue;
     }
 
@@ -158,6 +183,7 @@ async function main() {
     if (!podeAplicarAutomaticamente(diffs, extraido, atual)) {
       console.log(`  [${cliente.nome}] divergência fora do tolerado (${diffs.map((d) => d.campo).join(", ") || "nenhuma"}) — revisão manual.`);
       divergenciaNaoTolerada++;
+      await marcarVerificado(proposta.id);
       continue;
     }
 
@@ -167,6 +193,7 @@ async function main() {
     if (!documento) {
       console.log(`  [${cliente.nome}] sem CPF/CNPJ (nem extraído, nem já cadastrado) — revisão manual.`);
       semDocumento++;
+      await marcarVerificado(proposta.id);
       continue;
     }
 
@@ -184,6 +211,7 @@ async function main() {
         `  [${cliente.nome}] OK pra aplicar automaticamente${diffs.length > 0 ? ` (tolerando: ${diffs.map((d) => d.campo).join(", ")})` : " (sem divergência)"} — [dry-run] não aplicado.`,
       );
       aplicadas++;
+      await marcarVerificado(proposta.id);
       continue;
     }
 
@@ -224,6 +252,7 @@ async function main() {
         console.log(`  [${cliente.nome}] erro ao aplicar: ${err instanceof Error ? err.message : err}`);
         erroDownloadOuExtracao++;
       }
+      await marcarVerificado(proposta.id);
     }
   }
 
