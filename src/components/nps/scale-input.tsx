@@ -1,6 +1,6 @@
 "use client";
 
-const SCORES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const SCORES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 function bandClasses(score: number, selected: boolean) {
   if (!selected) {
@@ -24,14 +24,14 @@ export function ScaleInput({
 }) {
   return (
     <div>
-      <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-11">
+      <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-10">
         {SCORES.map((score) => (
           <button
             key={score}
             type="button"
             onClick={() => onChange(score)}
             aria-pressed={value === score}
-            className={`flex aspect-square items-center justify-center rounded-lg border text-sm font-semibold transition-colors ${bandClasses(
+            className={`flex aspect-square min-h-11 items-center justify-center rounded-lg border text-sm font-semibold transition-colors ${bandClasses(
               score,
               value === score,
             )}`}
@@ -40,9 +40,9 @@ export function ScaleInput({
           </button>
         ))}
       </div>
-      <div className="mt-2 flex justify-between gap-3 text-xs text-neutral-400">
-        <span className="max-w-[45%]">{leftLabel}</span>
-        <span className="max-w-[45%] text-right">{rightLabel}</span>
+      <div className="mt-2 flex justify-between gap-2 text-xs text-neutral-400">
+        <span className="max-w-[48%]">{leftLabel}</span>
+        <span className="max-w-[48%] text-right">{rightLabel}</span>
       </div>
     </div>
   );

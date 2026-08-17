@@ -17,13 +17,18 @@ export type HealthScoreBreakdown = {
   totalRespostas: number;
 };
 
-/** Normaliza cada bloco de perguntas (escala 0-10) para 0-100. */
+/** Normaliza uma nota na escala 1-10 do formulário para 0-100. */
+function normalizar(nota: number) {
+  return ((nota - 1) / 9) * 100;
+}
+
+/** Normaliza cada bloco de perguntas (escala 1-10) para 0-100. */
 function subScores(r: RespostaScores) {
   return {
-    nps: r.nps * 10,
-    csat: ((r.csatAtendimento + r.csatResultado + r.csatEntregas) / 3) * 10,
-    cev: ((r.cevSeguranca + r.cevValorizacao) / 2) * 10,
-    ces: r.cesFacilidade * 10,
+    nps: normalizar(r.nps),
+    csat: normalizar((r.csatAtendimento + r.csatResultado + r.csatEntregas) / 3),
+    cev: normalizar((r.cevSeguranca + r.cevValorizacao) / 2),
+    ces: normalizar(r.cesFacilidade),
   };
 }
 

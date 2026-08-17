@@ -8,7 +8,7 @@ import { canAccessNpsScreen } from "@/lib/rbac";
 import type { ActionState } from "./action-state";
 import { optionalText } from "./zod-helpers";
 
-const escala = z.coerce.number().int().min(0).max(10);
+const escala = z.coerce.number().int().min(1).max(10);
 
 const npsRespostaSchema = z.object({
   nomeEmpresa: z.string().trim().min(1, "Informe o nome da empresa"),

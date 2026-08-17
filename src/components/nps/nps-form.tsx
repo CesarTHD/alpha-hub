@@ -49,7 +49,7 @@ const STEP_INDEX: Record<Step, number> = {
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 shadow-sm sm:p-8">
+    <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4 shadow-sm sm:p-8">
       {children}
     </div>
   );
@@ -165,11 +165,11 @@ export function NpsForm({ franquiaId, franquiaNome }: { franquiaId: string; fran
         )}
       </header>
 
-      <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 py-6">
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 py-4 sm:py-6">
         {step === "intro" && (
-          <div className="flex flex-1 flex-col items-center justify-center py-10 text-center">
+          <div className="flex flex-1 flex-col items-center justify-center py-6 text-center sm:py-10">
             <AlphaMarkImage size={80} />
-            <h1 className="mt-6 text-2xl font-bold text-white">O que você acha da {franquiaNome}?</h1>
+            <h1 className="mt-6 text-xl font-bold text-white sm:text-2xl">O que você acha da {franquiaNome}?</h1>
             <p className="mt-3 max-w-xs text-sm text-neutral-400">
               Sua opinião ajuda a gente a melhorar o marketing do seu restaurante. Leva menos de 2
               minutos.
@@ -216,8 +216,8 @@ export function NpsForm({ franquiaId, franquiaNome }: { franquiaId: string; fran
         {step === "nps" && (
           <Card>
             <SectionLabel>Recomendação</SectionLabel>
-            <h2 className="mt-3 text-lg font-semibold text-white">
-              Em uma escala de 0 a 10, qual a probabilidade de você recomendar a Assessoria Alpha a
+            <h2 className="mt-3 text-base font-semibold text-white sm:text-lg">
+              Em uma escala de 1 a 10, qual a probabilidade de você recomendar a Assessoria Alpha a
               outro empresário / dono de restaurante?
             </h2>
             <div className="mt-5">
@@ -239,8 +239,8 @@ export function NpsForm({ franquiaId, franquiaNome }: { franquiaId: string; fran
         {step === "csat" && (
           <Card>
             <SectionLabel>Satisfação</SectionLabel>
-            <h2 className="mt-3 text-lg font-semibold text-white">
-              De 0 a 10, o quão satisfeito você está com o atendimento da Alpha (agilidade,
+            <h2 className="mt-3 text-base font-semibold text-white sm:text-lg">
+              De 1 a 10, o quão satisfeito você está com o atendimento da Alpha (agilidade,
               cordialidade, disponibilidade e clareza da equipe)?
             </h2>
             <div className="mt-5">
@@ -252,8 +252,8 @@ export function NpsForm({ franquiaId, franquiaNome }: { franquiaId: string; fran
               />
             </div>
 
-            <h2 className="mt-8 text-lg font-semibold text-white">
-              De 0 a 10, o quão satisfeito você está com os resultados que a Alpha vem entregando
+            <h2 className="mt-6 text-base font-semibold text-white sm:mt-8 sm:text-lg">
+              De 1 a 10, o quão satisfeito você está com os resultados que a Alpha vem entregando
               para você?
             </h2>
             <div className="mt-5">
@@ -265,8 +265,8 @@ export function NpsForm({ franquiaId, franquiaNome }: { franquiaId: string; fran
               />
             </div>
 
-            <h2 className="mt-8 text-lg font-semibold text-white">
-              De 0 a 10, o quão satisfeito você está com as entregas da Alpha (relatórios, ideias,
+            <h2 className="mt-6 text-base font-semibold text-white sm:mt-8 sm:text-lg">
+              De 1 a 10, o quão satisfeito você está com as entregas da Alpha (relatórios, ideias,
               estratégias e qualidade dos materiais)?
             </h2>
             <div className="mt-5">
@@ -291,8 +291,8 @@ export function NpsForm({ franquiaId, franquiaNome }: { franquiaId: string; fran
         {step === "cev" && (
           <Card>
             <SectionLabel>Valor emocional</SectionLabel>
-            <h2 className="mt-3 text-lg font-semibold text-white">
-              De 0 a 10, o quanto você se sente seguro e tranquilo por ter a Alpha cuidando do
+            <h2 className="mt-3 text-base font-semibold text-white sm:text-lg">
+              De 1 a 10, o quanto você se sente seguro e tranquilo por ter a Alpha cuidando do
               marketing da sua empresa?
             </h2>
             <div className="mt-5">
@@ -304,8 +304,8 @@ export function NpsForm({ franquiaId, franquiaNome }: { franquiaId: string; fran
               />
             </div>
 
-            <h2 className="mt-8 text-lg font-semibold text-white">
-              De 0 a 10, o quanto você se sente valorizado e bem cuidado como cliente da Alpha?
+            <h2 className="mt-6 text-base font-semibold text-white sm:mt-8 sm:text-lg">
+              De 1 a 10, o quanto você se sente valorizado e bem cuidado como cliente da Alpha?
             </h2>
             <div className="mt-5">
               <ScaleInput
@@ -327,8 +327,8 @@ export function NpsForm({ franquiaId, franquiaNome }: { franquiaId: string; fran
         {step === "ces" && (
           <Card>
             <SectionLabel>Esforço</SectionLabel>
-            <h2 className="mt-3 text-lg font-semibold text-white">
-              De 0 a 10, quando se tem algum problema, o quão fácil é resolver com a Alpha?
+            <h2 className="mt-3 text-base font-semibold text-white sm:text-lg">
+              De 1 a 10, quando se tem algum problema, o quão fácil é resolver com a Alpha?
             </h2>
             <div className="mt-5">
               <ScaleInput
@@ -349,7 +349,7 @@ export function NpsForm({ franquiaId, franquiaNome }: { franquiaId: string; fran
         {step === "closing" && (
           <Card>
             <SectionLabel>Para fechar</SectionLabel>
-            <h2 className="mt-3 text-lg font-semibold text-white">
+            <h2 className="mt-3 text-base font-semibold text-white sm:text-lg">
               Se você fosse um dos donos da Assessoria Alpha, o que você faria de diferente se
               estivesse na gestão da equipe que gerencia sua empresa?
             </h2>
@@ -369,9 +369,9 @@ export function NpsForm({ franquiaId, franquiaNome }: { franquiaId: string; fran
         )}
 
         {step === "done" && (
-          <div className="flex flex-1 flex-col items-center justify-center py-10 text-center">
+          <div className="flex flex-1 flex-col items-center justify-center py-6 text-center sm:py-10">
             <AlphaMarkImage size={80} />
-            <h1 className="mt-6 text-2xl font-bold text-white">Muito obrigado!</h1>
+            <h1 className="mt-6 text-xl font-bold text-white sm:text-2xl">Muito obrigado!</h1>
             <p className="mt-3 max-w-xs text-sm text-neutral-400">
               Sua resposta foi registrada. Ela nos ajuda a melhorar o trabalho que fazemos pelo seu
               restaurante todos os dias.
