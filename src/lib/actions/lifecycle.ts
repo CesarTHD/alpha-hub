@@ -10,7 +10,7 @@ import {
   canCreateContratoAdicional,
   canDeleteContrato,
 } from "@/lib/rbac";
-import { calcularFimContrato } from "@/lib/contrato-lifecycle";
+import { calcularFimContrato, fecharCarteiraSeSemContratoAtivo } from "@/lib/contrato-lifecycle";
 import type { ActionState } from "./action-state";
 import { optionalText } from "./zod-helpers";
 import { requireClienteAccess } from "./guards";
@@ -250,6 +250,7 @@ export async function registrarEncerramento(_prev: ActionState, formData: FormDa
       where: { id: parsed.data.contratoId },
       data: { status: "ENCERRADO", fimContrato: dataFim, dataSaida: dataFim },
     });
+    await fecharCarteiraSeSemContratoAtivo(tx, parsed.data.clienteId, dataFim);
     await tx.evento.create({
       data: {
         clienteId: parsed.data.clienteId,

@@ -261,9 +261,7 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
                         <ChurnDialog clienteId={cliente.id} contratoId={contratoAtual.id} />
                       </>
                     )}
-                    {(contratoAtual.status === "ATIVO" ||
-                      contratoAtual.status === "PAUSADO" ||
-                      contratoAtual.status === "VENCIDO") && (
+                    {contratoAtual.status === "VENCIDO" && (
                       <EncerramentoDialog clienteId={cliente.id} contratoId={contratoAtual.id} />
                     )}
                   </div>

@@ -2,6 +2,7 @@ import { addMonths } from "date-fns";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/current-user";
 import type { TipoContrato } from "@/generated/prisma/enums";
+import type { Prisma } from "@/generated/prisma/client";
 
 const DURACAO_MESES: Partial<Record<TipoContrato, number>> = {
   TRIMESTRAL: 3,
@@ -36,6 +37,30 @@ export function calcularFimContrato(inicioContrato: Date, tipoContrato: TipoCont
  * checagem, as duas veriam o contrato como elegível antes de qualquer uma
  * escrever, e ambas registrariam o evento.
  */
+/**
+ * Fecha o vínculo do cliente com a franquia (ClienteCarteira) quando ele não
+ * tem mais nenhum contrato em vigor (ATIVO/PAUSADO/VENCIDO) — evita carteiras
+ * "fantasma" (cliente contando como ativo na franquia sem ter contrato
+ * algum). Chamado depois de marcar um contrato como ENCERRADO — Churn já
+ * fecha a carteira incondicionalmente, por ser sempre a saída completa do
+ * cliente.
+ */
+export async function fecharCarteiraSeSemContratoAtivo(
+  tx: Prisma.TransactionClient,
+  clienteId: string,
+  dataFim: Date,
+) {
+  const aindaTemContratoAtivo = await tx.contrato.findFirst({
+    where: { clienteId, deletedAt: null, status: { in: ["ATIVO", "PAUSADO", "VENCIDO"] } },
+  });
+  if (aindaTemContratoAtivo) return;
+
+  const carteiraAtiva = await tx.clienteCarteira.findFirst({ where: { clienteId, ativo: true } });
+  if (carteiraAtiva) {
+    await tx.clienteCarteira.update({ where: { id: carteiraAtiva.id }, data: { ativo: false, dataFim } });
+  }
+}
+
 export async function marcarContratosVencidos() {
   const agora = new Date();
 

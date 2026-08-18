@@ -44,7 +44,9 @@ export function EncerramentoDialog({ clienteId, contratoId }: { clienteId: strin
           <input type="hidden" name="clienteId" value={clienteId} />
           <input type="hidden" name="contratoId" value={contratoId} />
           <p className="text-sm text-muted-foreground">
-            Marca o contrato como encerrado. O cliente ainda pode renovar depois, se necessário.
+            O prazo deste contrato já venceu e o cliente decidiu não renovar. Isso marca o contrato
+            como encerrado — diferente de um churn, já que a saída aconteceu depois do fim da
+            vigência, não antes.
           </p>
           <div className="space-y-2">
             <Label htmlFor="dataFim">Data de encerramento</Label>
