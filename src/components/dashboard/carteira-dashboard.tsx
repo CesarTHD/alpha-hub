@@ -255,6 +255,29 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
   const ticketMedio = ativosMRR > 0 ? mrr / ativosMRR : 0;
   const ticketMedioTCV = ativosTCV > 0 ? valorContratoTCV / ativosTCV : 0;
 
+  // Mês atual (sem mês de referência selecionado) — mesma lógica de `refBounds`,
+  // mas ancorada em `agora` em vez do input de mês.
+  const mesAtualBounds = useMemo(() => {
+    const d = new Date(agora);
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth();
+    return { start: Date.UTC(y, m, 1, 0, 0, 0), end: Date.UTC(y, m + 1, 0, 23, 59, 59) };
+  }, [agora]);
+
+  // Receita TCV contratada no mês (atual, ou o mês de referência selecionado)
+  // — contratos TCV cujo início caiu naquele mês, diferente de `valorContratoTCV`
+  // acima (que é o valor total da carteira TCV ainda vigente).
+  const contratosTCVDoMes = useMemo(() => {
+    const bounds = refBounds ?? mesAtualBounds;
+    return historyFiltrado.filter(
+      (d) =>
+        d.tipoContrato !== "MENSAL" &&
+        d.inicioContrato.getTime() >= bounds.start &&
+        d.inicioContrato.getTime() <= bounds.end,
+    );
+  }, [historyFiltrado, refBounds, mesAtualBounds]);
+  const valorTCVContratadoNoMes = contratosTCVDoMes.reduce((s, d) => s + d.valorContrato, 0);
+
   const churnRate = totalClientes > 0 ? (churn / totalClientes) * 100 : 0;
   const vencendo30 = snapshotFiltrado.filter(
     (d) => d.ativo && d.vencimentoDias !== null && d.vencimentoDias >= 0 && d.vencimentoDias <= 30,
@@ -569,16 +592,20 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
           label="MRR"
           value={brl(mrr)}
           accent={PRIMARY}
-          detail={`${ativosMRR} clientes mensais`}
+          detail={`${ativosMRR} clientes mensais ativos`}
           tooltip="Receita recorrente mensal dos clientes ativos."
         />
         <Kpi
           icon={<DollarSign className="h-4 w-4" />}
           label="Valor Contratado (TCV)"
-          value={brl(valorContratoTCV)}
+          value={brl(valorTCVContratadoNoMes)}
           accent={PRIMARY}
-          detail={`${ativosTCV} contratos TCV`}
-          tooltip="Valor total contratado dos clientes ativos com contratos TCV."
+          detail={`${contratosTCVDoMes.length} contratos TCV${refBounds ? "" : " neste mês"}`}
+          tooltip={
+            refBounds
+              ? "Receita TCV contratada no mês de referência selecionado."
+              : "Receita TCV contratada no mês atual."
+          }
         />
         <Kpi
           icon={<TrendingUp className="h-4 w-4" />}
