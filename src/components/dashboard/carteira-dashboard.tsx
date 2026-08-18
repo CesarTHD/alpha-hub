@@ -249,11 +249,7 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
   const franquias = new Set(snapshotFiltrado.map((d) => d.franquia)).size;
 
   const mrr = baseMrrRows.reduce((s, d) => s + d.valorMensal, 0);
-  const valorContratoTCV = baseAtivosRows
-    .filter((d) => d.tipoContrato !== "MENSAL")
-    .reduce((s, d) => s + d.valorContrato, 0);
   const ticketMedio = ativosMRR > 0 ? mrr / ativosMRR : 0;
-  const ticketMedioTCV = ativosTCV > 0 ? valorContratoTCV / ativosTCV : 0;
 
   // Mês atual (sem mês de referência selecionado) — mesma lógica de `refBounds`,
   // mas ancorada em `agora` em vez do input de mês.
@@ -265,8 +261,8 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
   }, [agora]);
 
   // Receita TCV contratada no mês (atual, ou o mês de referência selecionado)
-  // — contratos TCV cujo início caiu naquele mês, diferente de `valorContratoTCV`
-  // acima (que é o valor total da carteira TCV ainda vigente).
+  // — contratos TCV cujo início caiu naquele mês. Ticket Médio TCV usa a mesma
+  // base, pra ficar coerente com o valor contratado mostrado no KPI ao lado.
   const contratosTCVDoMes = useMemo(() => {
     const bounds = refBounds ?? mesAtualBounds;
     return historyFiltrado.filter(
@@ -277,6 +273,8 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
     );
   }, [historyFiltrado, refBounds, mesAtualBounds]);
   const valorTCVContratadoNoMes = contratosTCVDoMes.reduce((s, d) => s + d.valorContrato, 0);
+  const ticketMedioTCV =
+    contratosTCVDoMes.length > 0 ? valorTCVContratadoNoMes / contratosTCVDoMes.length : 0;
 
   const churnRate = totalClientes > 0 ? (churn / totalClientes) * 100 : 0;
   const vencendo30 = snapshotFiltrado.filter(
@@ -620,8 +618,12 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
           label="Ticket Médio TCV"
           value={brl(ticketMedioTCV)}
           accent={STATUS.good}
-          detail="Contratos TCV"
-          tooltip="Valor contratado dividido pela quantidade de contratos TCV ativos."
+          detail={refBounds ? "Contratos TCV no mês de referência" : "Contratos TCV neste mês"}
+          tooltip={
+            refBounds
+              ? "Receita TCV contratada no mês de referência dividida pela quantidade de contratos TCV desse mês."
+              : "Receita TCV contratada no mês atual dividida pela quantidade de contratos TCV desse mês."
+          }
         />
       </div>
 
