@@ -218,8 +218,11 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
   );
 
   const baseMrrRows = useMemo(() => {
-    const source = refEndMs === null ? historyFiltrado.filter((d) => MRR_STATUSES.has(d.status)) : baseAtivosRows;
-    return source.filter((d) => d.tipoContrato === "MENSAL");
+    const source = refEndMs === null ? historyFiltrado : baseAtivosRows;
+    // Sempre filtra pelo status ao vivo (Ativo/Pausado/Vencido), mesmo no ramo
+    // por mês — `vigenteNoInstante` é só janela de datas e não sabe que um
+    // contrato Encerrado manualmente (sem fimContrato setado) já saiu do MRR.
+    return source.filter((d) => MRR_STATUSES.has(d.status) && d.tipoContrato === "MENSAL");
   }, [historyFiltrado, refEndMs, baseAtivosRows]);
   const ativosMRRIds = useMemo(() => new Set(baseMrrRows.map((d) => d.clienteId)), [baseMrrRows]);
   const valorMrrPorCliente = useMemo(() => {

@@ -228,6 +228,7 @@ export async function registrarChurn(_prev: ActionState, formData: FormData): Pr
 const encerramentoSchema = z.object({
   clienteId: z.string().min(1),
   contratoId: z.string().min(1),
+  dataFim: z.string().min(1, "Informe a data de encerramento"),
   motivo: optionalText(z.string().trim()),
 });
 
@@ -235,22 +236,26 @@ export async function registrarEncerramento(_prev: ActionState, formData: FormDa
   const parsed = encerramentoSchema.safeParse({
     clienteId: formData.get("clienteId"),
     contratoId: formData.get("contratoId"),
+    dataFim: formData.get("dataFim"),
     motivo: formData.get("motivo"),
   });
   if (!parsed.success) return { ok: false, fieldErrors: parsed.error.flatten().fieldErrors };
 
   const { usuario, allowed } = await requireClienteAccess(parsed.data.clienteId);
   if (!allowed || !canManageContratos(usuario)) return { ok: false, message: "Acesso negado." };
-  const agora = new Date();
+  const dataFim = new Date(parsed.data.dataFim);
 
   await db.$transaction(async (tx) => {
-    await tx.contrato.update({ where: { id: parsed.data.contratoId }, data: { status: "ENCERRADO" } });
+    await tx.contrato.update({
+      where: { id: parsed.data.contratoId },
+      data: { status: "ENCERRADO", fimContrato: dataFim, dataSaida: dataFim },
+    });
     await tx.evento.create({
       data: {
         clienteId: parsed.data.clienteId,
         contratoId: parsed.data.contratoId,
         tipoEvento: "ENCERRAMENTO_CONTRATO",
-        dataEvento: agora,
+        dataEvento: dataFim,
         motivo: parsed.data.motivo || null,
         usuarioResponsavelId: usuario.id,
       },
