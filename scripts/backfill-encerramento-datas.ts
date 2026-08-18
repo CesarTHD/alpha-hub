@@ -2,20 +2,17 @@ import "dotenv/config";
 import { db } from "@/lib/db";
 
 // Contratos ENCERRADO manualmente (antes da correção do formulário de
-// encerramento) ficaram em um de dois estados problemáticos:
+// encerramento) ficaram sem dataSaida preenchida. O dado confiável pra
+// reconstruir essa data é o evento ENCERRAMENTO_CONTRATO daquele contrato
+// (dataEvento).
 //
-//   1. fimContrato NULO — contratos MENSAL não têm fim natural calculado na
-//      criação, então nada foi gravado.
-//   2. fimContrato DESATUALIZADO — contratos TCV (Trimestral/Semestral/...)
-//      já tinham um fimContrato calculado na criação (calcularFimContrato,
-//      início + duração do plano). Encerrar o contrato ANTES desse prazo
-//      natural não atualizava esse campo — ele ainda aponta pra data em que
-//      o contrato venceria naturalmente, não pra data real de saída. Isso faz
-//      o dashboard contar esses clientes como "vigentes" em meses em que eles
-//      já tinham saído.
-//
-// Em ambos os casos, o dado confiável é o evento ENCERRAMENTO_CONTRATO
-// daquele contrato (dataEvento) — é ele quem sabemos que reflete a data real.
+// IMPORTANTE: só preenche dataSaida — nunca sobrescreve fimContrato.
+// fimContrato é o prazo ORIGINALMENTE contratado (início + duração do plano,
+// ver calcularFimContrato) e deve permanecer assim mesmo quando o cliente sai
+// antes desse prazo; dataSaida é quem registra a saída real. `fimEfetivoMs`
+// (carteira-calculos.ts) já prioriza dataSaida sobre fimContrato no cálculo
+// de vigência, então preencher só dataSaida já é suficiente pro dashboard
+// parar de contar esses clientes como "vigentes" depois que saíram.
 //
 // Contratos ENCERRADO sem esse evento (dataSaida nula, mas sem evento
 // correspondente) são, em geral, contratos encerrados por RENOVAÇÃO — nesse
@@ -53,19 +50,19 @@ async function main() {
     const evento = c.eventos[0];
 
     if (evento) {
-      const fimAntigo = c.fimContrato ? c.fimContrato.toISOString().slice(0, 10) : "null";
+      const fimContratoAtual = c.fimContrato ? c.fimContrato.toISOString().slice(0, 10) : "null";
       const dataCorreta = evento.dataEvento.toISOString().slice(0, 10);
-      if (fimAntigo !== dataCorreta) divergentes++;
+      if (fimContratoAtual !== dataCorreta) divergentes++;
       corrigidosPorEvento++;
 
       console.log(
-        `[evento] ${c.cliente.nome} — contrato ${c.id}: fimContrato ${fimAntigo} → ${dataCorreta}, dataSaida ← ${dataCorreta}`,
+        `[evento] ${c.cliente.nome} — contrato ${c.id}: dataSaida ← ${dataCorreta} (fimContrato mantido: ${fimContratoAtual})`,
       );
 
       if (APLICAR) {
         await db.contrato.update({
           where: { id: c.id },
-          data: { fimContrato: evento.dataEvento, dataSaida: evento.dataEvento },
+          data: { dataSaida: evento.dataEvento },
         });
       }
       continue;
@@ -95,7 +92,9 @@ async function main() {
     }
   }
 
-  console.log(`\nCorrigidos via evento ENCERRAMENTO_CONTRATO: ${corrigidosPorEvento} (${divergentes} tinham fimContrato desatualizado)`);
+  console.log(
+    `\ndataSaida preenchida via evento ENCERRAMENTO_CONTRATO: ${corrigidosPorEvento} (${divergentes} com fimContrato diferente da data real de saída — fimContrato NÃO foi alterado)`,
+  );
   console.log(`Confirmados como encerramento por renovação: ${semEventoConfirmados.length}`);
 
   if (anomalias.length > 0) {

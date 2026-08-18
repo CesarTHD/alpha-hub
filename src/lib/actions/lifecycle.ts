@@ -169,6 +169,11 @@ export async function registrarRetomada(_prev: ActionState, formData: FormData):
 // Churn
 // ---------------------------------------------------------------------------
 
+// Nem Churn nem Encerramento tocam fimContrato — ele é o prazo ORIGINALMENTE
+// contratado (calcularFimContrato) e deve permanecer assim mesmo quando o
+// cliente sai antes desse prazo. dataSaida é quem registra a saída real;
+// fimEfetivoMs (carteira-calculos.ts) já prioriza dataSaida sobre fimContrato
+// no cálculo de vigência.
 const churnSchema = z.object({
   clienteId: z.string().min(1),
   contratoId: z.string().min(1),
@@ -192,7 +197,7 @@ export async function registrarChurn(_prev: ActionState, formData: FormData): Pr
   await db.$transaction(async (tx) => {
     await tx.contrato.update({
       where: { id: parsed.data.contratoId },
-      data: { status: "CHURN", dataSaida, fimContrato: dataSaida },
+      data: { status: "CHURN", dataSaida },
     });
 
     const carteiraAtiva = await tx.clienteCarteira.findFirst({
@@ -248,7 +253,7 @@ export async function registrarEncerramento(_prev: ActionState, formData: FormDa
   await db.$transaction(async (tx) => {
     await tx.contrato.update({
       where: { id: parsed.data.contratoId },
-      data: { status: "ENCERRADO", fimContrato: dataFim, dataSaida: dataFim },
+      data: { status: "ENCERRADO", dataSaida: dataFim },
     });
     await fecharCarteiraSeSemContratoAtivo(tx, parsed.data.clienteId, dataFim);
     await tx.evento.create({

@@ -30,6 +30,7 @@ import {
   Info,
   Download,
   Search,
+  Ban,
 } from "lucide-react";
 import {
   type ContratoRow,
@@ -246,6 +247,23 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
         )
       : historyFiltrado.filter((d) => d.churn);
     return new Set(rowsChurn.map((d) => d.clienteId)).size;
+  }, [historyFiltrado, refBounds]);
+
+  // Encerrado = contrato venceu (VENCIDO) e o cliente decidiu não renovar —
+  // diferente de Churn, que é sair antes do fim da vigência. Mesma lógica do
+  // `churn` acima (dedup por cliente, filtra por dataSaida no mês de
+  // referência quando selecionado), só trocando o status.
+  const encerrados = useMemo(() => {
+    const rowsEncerrados = refBounds
+      ? historyFiltrado.filter(
+          (d) =>
+            d.status === "ENCERRADO" &&
+            d.dataSaida &&
+            d.dataSaida.getTime() >= refBounds.start &&
+            d.dataSaida.getTime() <= refBounds.end,
+        )
+      : historyFiltrado.filter((d) => d.status === "ENCERRADO");
+    return new Set(rowsEncerrados.map((d) => d.clienteId)).size;
   }, [historyFiltrado, refBounds]);
 
   const pausados = snapshotFiltrado.filter((d) => d.pausado).length;
@@ -631,7 +649,7 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
       </div>
 
       {/* KPIs — carteira */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
         <Kpi
           icon={<Users className="h-4 w-4" />}
           label="Total de Clientes"
@@ -651,6 +669,15 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
           value={churn}
           accent={STATUS.critical}
           detail={`${churnRate.toFixed(1)}% da carteira`}
+          tooltip="Cliente pediu para sair antes do fim da vigência do contrato."
+        />
+        <Kpi
+          icon={<Ban className="h-4 w-4" />}
+          label="Encerrados"
+          value={encerrados}
+          accent={STATUS.warning}
+          detail={`${((encerrados / Math.max(totalClientes, 1)) * 100).toFixed(1)}% da carteira`}
+          tooltip="Contrato venceu e o cliente decidiu não renovar — perda por não renovação, diferente de Churn (saída antes do fim da vigência)."
         />
         <Kpi
           icon={<ArrowUpDown className="h-4 w-4" />}
