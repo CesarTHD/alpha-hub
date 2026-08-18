@@ -48,22 +48,20 @@ function Secao({ titulo, children }: { titulo: string; children: React.ReactNode
 }
 
 export function RespostaDetalheDialog({
-  clienteNome,
   resposta,
 }: {
-  clienteNome: string;
   resposta: RespostaDetalhe;
 }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
         <button type="button" className="font-medium text-foreground hover:underline">
-          {clienteNome}
+          {resposta.nomeEmpresa}
         </button>
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Respostas de {clienteNome}</DialogTitle>
+          <DialogTitle>Respostas de {resposta.nomeEmpresa}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">

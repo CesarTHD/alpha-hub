@@ -64,16 +64,15 @@ export default async function NpsRespostasPage({
           <Card key={r.id}>
             <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
               <div>
-                <p className="font-medium">{r.nomeEmpresa}</p>
+                <p>
+                  <RespostaDetalheDialog resposta={r} />
+                </p>
                 <p className="text-sm text-muted-foreground">
                   {r.whatsapp} · {r.createdAt.toLocaleDateString("pt-BR")}
                 </p>
                 <p className="mt-1 text-sm">
                   {r.cliente ? (
-                    <>
-                      Vinculado a{" "}
-                      <RespostaDetalheDialog clienteNome={r.cliente.nome} resposta={r} />
-                    </>
+                    <>Vinculado a {r.cliente.nome}</>
                   ) : (
                     <span className="text-muted-foreground">Não vinculado</span>
                   )}
