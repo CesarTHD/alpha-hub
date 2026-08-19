@@ -39,6 +39,11 @@ export async function getLinhasCarteira(scope: DashboardCarteiraScope = null): P
       fimContrato: true,
       dataSaida: true,
       renovacaoAutomatica: true,
+      eventos: {
+        where: { tipoEvento: { in: ["NOVO_CONTRATO", "RENOVACAO"] } },
+        take: 1,
+        select: { tipoEvento: true },
+      },
       cliente: {
         select: {
           nome: true,
@@ -92,6 +97,7 @@ export async function getLinhasCarteira(scope: DashboardCarteiraScope = null): P
       churn: c.status === "CHURN",
       vencimentoDias,
       faixaVencimento: calcularFaixa(vencimentoDias),
+      origemContrato: c.eventos[0]?.tipoEvento === "RENOVACAO" ? "RENOVACAO" : "NOVO",
     };
   });
 }

@@ -48,9 +48,19 @@ export type ContratoRow = {
   churn: boolean;
   vencimentoDias: number | null;
   faixaVencimento: string;
+  /** Evento que originou este contrato — Renovação ou Novo Contrato (primeira
+   *  venda ou contrato adicional). Alteração de plano/valor não gera um novo
+   *  Contrato, então nunca aparece aqui. */
+  origemContrato: "NOVO" | "RENOVACAO";
 };
 
 export const MS_DIA = 1000 * 60 * 60 * 24;
+
+/** Status "em carteira" — só sai da conta quem dá Churn ou tem o contrato
+ *  Encerrado; Pausado e Vencido (aguardando renovação) continuam contando.
+ *  Mesma regra usada em `fecharCarteiraSeSemContratoAtivo` no backend
+ *  (contrato-lifecycle.ts). */
+export const PORTFOLIO_STATUSES = new Set<StatusContrato>(["ATIVO", "PAUSADO", "VENCIDO"]);
 
 export function calcularFaixa(vencimentoDias: number | null): string {
   if (vencimentoDias === null) return "Recorrente";
@@ -69,16 +79,30 @@ export function fimEfetivoMs(row: ContratoRow): number | null {
   return null;
 }
 
-/** A linha (um contrato) estava vigente no instante `refEndMs`? Checagem
- *  puramente por janela de datas — não considera PAUSADO, igual ao dashboard
- *  de referência (limitação aceita: um cliente pausado no mês de referência
- *  ainda conta como "vigente" nessa checagem ponto-no-tempo). */
-export function vigenteNoInstante(row: ContratoRow, refEndMs: number): boolean {
+/**
+ * A linha (um contrato) estava "em carteira" no instante `refEndMs`?
+ *
+ * Enquanto o contrato ainda está em PORTFOLIO_STATUSES (nenhuma ação real de
+ * saída foi registrada nele), ele conta como vigente pra qualquer instante
+ * entre o início e `agora` — o `fimContrato` de um TCV Vencido é só o prazo
+ * ORIGINALMENTE contratado (nunca é tocado por Churn/Encerramento, ver
+ * comentário em lifecycle.ts), não uma saída real; só `dataSaida` (Churn/
+ * Encerramento) ou a substituição por renovação (`fimContrato` sobrescrito
+ * com a data do contrato seguinte) fecham a janela de fato.
+ *
+ * `refEndMs` no futuro é limitado a `agora` — não dá pra saber o estado da
+ * carteira num instante que ainda não aconteceu (ex.: filtrar pelo mês
+ * corrente, ainda em andamento, não deveria contar contratos agendados pra
+ * começar depois de hoje como se já tivessem começado).
+ */
+export function vigenteNoInstante(row: ContratoRow, refEndMs: number, agora: number): boolean {
+  const efetivo = Math.min(refEndMs, agora);
   const inicioMs = row.inicioContrato.getTime();
-  if (inicioMs > refEndMs) return false;
+  if (inicioMs > efetivo) return false;
+  if (PORTFOLIO_STATUSES.has(row.status)) return true;
   const fimMs = fimEfetivoMs(row);
   if (fimMs === null) return true;
-  return fimMs > refEndMs;
+  return fimMs > efetivo;
 }
 
 /** A linha se sobrepõe ao mês de referência [start,end] — usado para "estava

@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   ArrowUpDown,
   TrendingUp,
+  TrendingDown,
   Users,
   Building2,
   DollarSign,
@@ -79,9 +80,19 @@ const brlFull = (v: number) => v.toLocaleString("pt-BR", { style: "currency", cu
 const ESTE_MES = "Este mês";
 const FAIXA_ORDEM = ["Vencido", "Até 30 dias", "31 a 60 dias", "61 a 90 dias", "Mais de 90 dias", "Recorrente"];
 
-// MRR conta clientes Ativos, Pausados e Vencidos — só Churn/Encerrado saem da conta,
-// diferente de `baseAtivosRows` (Ativos/TCV), que segue o status "ao vivo" estrito.
-const MRR_STATUSES = new Set(["ATIVO", "PAUSADO", "VENCIDO"]);
+function prevMonthBounds(startMs: number): { start: number; end: number } {
+  const d = new Date(startMs);
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth();
+  return { start: Date.UTC(y, m - 1, 1, 0, 0, 0), end: Date.UTC(y, m, 0, 23, 59, 59) };
+}
+
+/** Variação percentual vs mês anterior. `null` quando não há base de
+ *  comparação (mês anterior zerado) — nesse caso o KPI não mostra a linha. */
+function pctChange(atual: number, anterior: number): number | null {
+  if (anterior === 0) return null;
+  return ((atual - anterior) / anterior) * 100;
+}
 
 function venceEsteMes(vencimentoDias: number | null): boolean {
   if (vencimentoDias === null) return false;
@@ -203,14 +214,16 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
 
   const refEndMs = refBounds ? refBounds.end : null;
 
-  // Sem mês de referência: usa o status "ao vivo" de cada contrato (fonte da
-  // verdade). Com mês de referência: recalcula ponto-no-tempo sobre TODO o
-  // histórico do cliente (não só o contrato atual), pra achar o contrato
-  // certo mesmo quando ele já foi substituído por uma renovação.
-  const baseAtivosRows = useMemo(() => {
-    if (refEndMs === null) return historyFiltrado.filter((d) => d.ativo);
-    return historyFiltrado.filter((d) => vigenteNoInstante(d, refEndMs));
-  }, [historyFiltrado, refEndMs]);
+  // Reconstrói ponto-no-tempo sobre TODO o histórico do cliente (não só o
+  // contrato atual), pra achar o contrato certo mesmo quando ele já foi
+  // substituído por uma renovação. Sem mês de referência, o instante é
+  // "agora" — e `vigenteNoInstante` já limita qualquer `refEndMs` futuro a
+  // `agora` também, então selecionar o mês corrente (ainda em andamento) dá
+  // exatamente o mesmo resultado que não filtrar.
+  const baseAtivosRows = useMemo(
+    () => historyFiltrado.filter((d) => vigenteNoInstante(d, refEndMs ?? agora, agora)),
+    [historyFiltrado, refEndMs, agora],
+  );
 
   const ativosIds = useMemo(() => new Set(baseAtivosRows.map((d) => d.clienteId)), [baseAtivosRows]);
   const ativosTCVIds = useMemo(
@@ -218,13 +231,12 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
     [baseAtivosRows],
   );
 
-  const baseMrrRows = useMemo(() => {
-    const source = refEndMs === null ? historyFiltrado : baseAtivosRows;
-    // Sempre filtra pelo status ao vivo (Ativo/Pausado/Vencido), mesmo no ramo
-    // por mês — `vigenteNoInstante` é só janela de datas e não sabe que um
-    // contrato Encerrado manualmente (sem fimContrato setado) já saiu do MRR.
-    return source.filter((d) => MRR_STATUSES.has(d.status) && d.tipoContrato === "MENSAL");
-  }, [historyFiltrado, refEndMs, baseAtivosRows]);
+  // Sempre um subconjunto de `baseAtivosRows` — garante que MRR + TCV somem
+  // exatamente o total de Ativos, nos dois ramos (com e sem mês selecionado).
+  const baseMrrRows = useMemo(
+    () => baseAtivosRows.filter((d) => d.tipoContrato === "MENSAL"),
+    [baseAtivosRows],
+  );
   const ativosMRRIds = useMemo(() => new Set(baseMrrRows.map((d) => d.clienteId)), [baseMrrRows]);
   const valorMrrPorCliente = useMemo(() => {
     const map = new Map<string, number>();
@@ -281,21 +293,50 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
     return { start: Date.UTC(y, m, 1, 0, 0, 0), end: Date.UTC(y, m + 1, 0, 23, 59, 59) };
   }, [agora]);
 
-  // Receita TCV contratada no mês (atual, ou o mês de referência selecionado)
-  // — contratos TCV cujo início caiu naquele mês. Ticket Médio TCV usa a mesma
-  // base, pra ficar coerente com o valor contratado mostrado no KPI ao lado.
-  const contratosTCVDoMes = useMemo(() => {
-    const bounds = refBounds ?? mesAtualBounds;
-    return historyFiltrado.filter(
-      (d) =>
-        d.tipoContrato !== "MENSAL" &&
-        d.inicioContrato.getTime() >= bounds.start &&
-        d.inicioContrato.getTime() <= bounds.end,
-    );
-  }, [historyFiltrado, refBounds, mesAtualBounds]);
+  // Mês "em foco" pros KPIs financeiros: o mês de referência selecionado, ou
+  // o mês atual quando nenhum filtro está aplicado.
+  const bounds = useMemo(() => refBounds ?? mesAtualBounds, [refBounds, mesAtualBounds]);
+  const boundsAnterior = useMemo(() => prevMonthBounds(bounds.start), [bounds]);
+
+  // Receita TCV contratada no mês em foco — contratos TCV cujo início caiu
+  // naquele mês, separados por Novo Contrato (cliente novo ou adicional) vs
+  // Renovação. Ticket Médio TCV usa a mesma base, pra ficar coerente com o
+  // valor contratado mostrado no KPI ao lado.
+  const contratosTCVDoMes = useMemo(
+    () =>
+      historyFiltrado.filter(
+        (d) =>
+          d.tipoContrato !== "MENSAL" &&
+          d.inicioContrato.getTime() >= bounds.start &&
+          d.inicioContrato.getTime() <= bounds.end,
+      ),
+    [historyFiltrado, bounds],
+  );
+  const contratosTCVNovosDoMes = contratosTCVDoMes.filter((d) => d.origemContrato === "NOVO");
+  const contratosTCVRenovacoesDoMes = contratosTCVDoMes.filter((d) => d.origemContrato === "RENOVACAO");
   const valorTCVContratadoNoMes = contratosTCVDoMes.reduce((s, d) => s + d.valorContrato, 0);
   const ticketMedioTCV =
     contratosTCVDoMes.length > 0 ? valorTCVContratadoNoMes / contratosTCVDoMes.length : 0;
+
+  // Comparativo com o mês anterior ao mês em foco — mesma base de cálculo do
+  // MRR/TCV do mês atual, só que ancorada um mês antes.
+  const mrrMesAnterior = useMemo(() => {
+    const rows = historyFiltrado.filter(
+      (d) => d.tipoContrato === "MENSAL" && vigenteNoInstante(d, boundsAnterior.end, agora),
+    );
+    return rows.reduce((s, d) => s + d.valorMensal, 0);
+  }, [historyFiltrado, boundsAnterior, agora]);
+  const valorTCVContratadoMesAnterior = useMemo(() => {
+    const rows = historyFiltrado.filter(
+      (d) =>
+        d.tipoContrato !== "MENSAL" &&
+        d.inicioContrato.getTime() >= boundsAnterior.start &&
+        d.inicioContrato.getTime() <= boundsAnterior.end,
+    );
+    return rows.reduce((s, d) => s + d.valorContrato, 0);
+  }, [historyFiltrado, boundsAnterior]);
+  const mrrDeltaPct = pctChange(mrr, mrrMesAnterior);
+  const tcvDeltaPct = pctChange(valorTCVContratadoNoMes, valorTCVContratadoMesAnterior);
 
   const churnRate = totalClientes > 0 ? (churn / totalClientes) * 100 : 0;
   const vencendo30 = snapshotFiltrado.filter(
@@ -427,8 +468,7 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
 
       historyFiltrado.forEach((r) => {
         const inicioMs = r.inicioContrato.getTime();
-        const fimMs = fimEfetivoMs(r);
-        const ativoNoFimDoMes = inicioMs <= eom && (fimMs === null || fimMs > eom);
+        const ativoNoFimDoMes = vigenteNoInstante(r, eom, agora);
 
         if (ativoNoFimDoMes) {
           ativosNoMes.add(r.clienteId);
@@ -612,19 +652,22 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
           value={brl(mrr)}
           accent={PRIMARY}
           detail={`${ativosMRR} clientes mensais ativos`}
-          tooltip="Receita recorrente mensal dos clientes ativos."
+          tooltip="Receita recorrente mensal dos clientes ativos, pausados e vencidos (só sai quem dá churn ou encerra)."
+          delta={mrrDeltaPct}
         />
         <Kpi
           icon={<DollarSign className="h-4 w-4" />}
           label="Valor Contratado (TCV)"
           value={brl(valorTCVContratadoNoMes)}
           accent={PRIMARY}
-          detail={`${contratosTCVDoMes.length} contratos TCV${refBounds ? "" : " neste mês"}`}
+          detail={`${contratosTCVNovosDoMes.length} novos • ${contratosTCVRenovacoesDoMes.length} renovações`}
           tooltip={
-            refBounds
-              ? "Receita TCV contratada no mês de referência selecionado."
-              : "Receita TCV contratada no mês atual."
+            (refBounds
+              ? "Receita TCV contratada no mês de referência selecionado"
+              : "Receita TCV contratada no mês atual") +
+            ", separada em contratos Novos (cliente novo ou adicional) e Renovações."
           }
+          delta={tcvDeltaPct}
         />
         <Kpi
           icon={<TrendingUp className="h-4 w-4" />}
@@ -1231,6 +1274,7 @@ function Kpi({
   icon,
   tooltip,
   detail,
+  delta,
 }: {
   label: string;
   value: React.ReactNode;
@@ -1238,6 +1282,9 @@ function Kpi({
   icon?: React.ReactNode;
   tooltip?: string;
   detail?: string;
+  /** Variação percentual vs mês anterior — verde/seta pra cima se positiva,
+   *  vermelho/seta pra baixo se negativa. `null`/`undefined` não mostra nada. */
+  delta?: number | null;
 }) {
   return (
     <Card
@@ -1246,8 +1293,24 @@ function Kpi({
     >
       <CardContent className="pt-5">
         <div className="flex items-center justify-between">
-          <div className="text-2xl font-bold tracking-tight" style={accent ? { color: accent } : undefined}>
-            {value}
+          <div className="flex items-baseline gap-2">
+            <div className="text-2xl font-bold tracking-tight" style={accent ? { color: accent } : undefined}>
+              {value}
+            </div>
+            {delta !== undefined && delta !== null && (
+              <span
+                className="flex items-center gap-0.5 text-xs font-semibold"
+                style={{ color: delta > 0 ? STATUS.good : delta < 0 ? STATUS.critical : undefined }}
+              >
+                {delta > 0 ? (
+                  <TrendingUp className="h-3 w-3" />
+                ) : delta < 0 ? (
+                  <TrendingDown className="h-3 w-3" />
+                ) : null}
+                {delta > 0 ? "+" : ""}
+                {delta.toFixed(1)}%
+              </span>
+            )}
           </div>
           {icon && <div className="text-muted-foreground">{icon}</div>}
         </div>
