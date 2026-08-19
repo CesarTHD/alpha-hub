@@ -649,13 +649,13 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
       </div>
 
       {/* KPIs — carteira */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
-        <Kpi
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        {/* <Kpi
           icon={<Users className="h-4 w-4" />}
           label="Total de Clientes"
           value={totalClientes}
           detail={`${totalMRR} Mensais • ${totalTCV} TCV`}
-        />
+        /> */}
         <Kpi
           icon={<Check className="h-4 w-4" />}
           label="Ativos"
