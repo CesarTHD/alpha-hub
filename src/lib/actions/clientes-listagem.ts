@@ -12,6 +12,7 @@ export type ClienteListagemRow = {
   franquiaAtiva: boolean;
   profitNome: string | null;
   plano: string | null;
+  tipoContrato: string | null;
   valorMensal: string | null;
   inicioContrato: Date | null;
   fimContrato: Date | null;
@@ -57,6 +58,7 @@ export async function buscarClientes(filtros: ClientesFiltros): Promise<ClienteL
       franquiaAtiva: carteira?.ativo ?? true,
       profitNome: carteira?.franquia.historicoProfit[0]?.profit.nome ?? null,
       plano: contrato?.plano ?? null,
+      tipoContrato: contrato?.tipoContrato ?? null,
       valorMensal: contrato ? contrato.valorMensal.toString() : null,
       inicioContrato: contrato ? contrato.inicioContrato : null,
       fimContrato: contrato ? contrato.fimContrato : null,

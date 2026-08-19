@@ -310,6 +310,7 @@ export function ClientesScreen({
             <TableHead>Franquia</TableHead>
             <TableHead>Profit</TableHead>
             <TableHead>Plano</TableHead>
+            <TableHead>Tipo</TableHead>
             <TableHead>Valor mensal</TableHead>
             <TableHead>Início de contrato</TableHead>
             <TableHead>Fim de contrato</TableHead>
@@ -350,6 +351,7 @@ export function ClientesScreen({
                   {c.plano ?? "—"}
                 </span>
               </TableCell>
+              <TableCell>{c.tipoContrato ? c.tipoContrato.charAt(0) + c.tipoContrato.slice(1).toLocaleLowerCase() : "—"}</TableCell>
               <TableCell>{c.valorMensal ? formatCurrency(c.valorMensal) : "—"}</TableCell>
               <TableCell>{formatDate(c.inicioContrato)}</TableCell>
               <TableCell>{formatDate(c.fimContrato)}</TableCell>
