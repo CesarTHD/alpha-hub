@@ -311,6 +311,7 @@ export function ClientesScreen({
             <TableHead>Profit</TableHead>
             <TableHead>Plano</TableHead>
             <TableHead>Valor mensal</TableHead>
+            <TableHead>Início de contrato</TableHead>
             <TableHead>Fim de contrato</TableHead>
             <TableHead>Status</TableHead>
           </TableRow>
@@ -350,6 +351,7 @@ export function ClientesScreen({
                 </span>
               </TableCell>
               <TableCell>{c.valorMensal ? formatCurrency(c.valorMensal) : "—"}</TableCell>
+              <TableCell>{formatDate(c.inicioContrato)}</TableCell>
               <TableCell>{formatDate(c.fimContrato)}</TableCell>
               <TableCell>
                 {c.status ? <Badge variant={statusVariant[c.status]}>{c.status}</Badge> : "—"}
