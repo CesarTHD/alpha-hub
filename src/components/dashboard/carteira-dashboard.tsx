@@ -338,7 +338,23 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
   const mrrDeltaPct = pctChange(mrr, mrrMesAnterior);
   const tcvDeltaPct = pctChange(valorTCVContratadoNoMes, valorTCVContratadoMesAnterior);
 
-  const churnRate = totalClientes > 0 ? (churn / totalClientes) * 100 : 0;
+  // Base de comparação da taxa: sem mês selecionado, é uma taxa vitalícia
+  // (churn/encerrados de todos os tempos ÷ todos os clientes que a carteira já
+  // teve). Com um mês de referência selecionado, `churn`/`encerrados` já viram
+  // um FLUXO daquele mês — dividir por `totalClientes` (todos os tempos)
+  // sub-representa a taxa; a base correta é quem já estava em carteira no
+  // INÍCIO daquele mês.
+  const clientesInicioPeriodo = useMemo(() => {
+    if (!refBounds) return null;
+    const idsInicioPeriodo = new Set(
+      historyFiltrado.filter((d) => vigenteNoInstante(d, refBounds.start, agora)).map((d) => d.clienteId),
+    );
+    return idsInicioPeriodo.size;
+  }, [historyFiltrado, refBounds, agora]);
+  const baseTaxaPeriodo = clientesInicioPeriodo ?? totalClientes;
+
+  const churnRate = baseTaxaPeriodo > 0 ? (churn / baseTaxaPeriodo) * 100 : 0;
+  const encerradosRate = baseTaxaPeriodo > 0 ? (encerrados / baseTaxaPeriodo) * 100 : 0;
   const vencendo30 = snapshotFiltrado.filter(
     (d) => d.ativo && d.vencimentoDias !== null && d.vencimentoDias >= 0 && d.vencimentoDias <= 30,
   ).length;
@@ -712,14 +728,19 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
           value={churn}
           accent={STATUS.critical}
           detail={`${churnRate.toFixed(1)}% da carteira`}
-          tooltip="Cliente pediu para sair antes do fim da vigência do contrato."
+          tooltip={
+            "Cliente pediu para sair antes do fim da vigência do contrato." +
+            (refBounds
+              ? " Taxa = churns do mês de referência ÷ clientes que já estavam em carteira no início desse mês."
+              : " Taxa vitalícia = churns de todos os tempos ÷ total de clientes que a carteira já teve.")
+          }
         />
         <Kpi
           icon={<Ban className="h-4 w-4" />}
           label="Encerrados"
           value={encerrados}
           accent={STATUS.warning}
-          detail={`${((encerrados / Math.max(totalClientes, 1)) * 100).toFixed(1)}% da carteira`}
+          detail={`${encerradosRate.toFixed(1)}% da carteira`}
           tooltip="Contrato venceu e o cliente decidiu não renovar — perda por não renovação, diferente de Churn (saída antes do fim da vigência)."
         />
         <Kpi
@@ -768,7 +789,11 @@ export function CarteiraDashboard({ rows }: { rows: ContratoRow[] }) {
           value={`${churnRate.toFixed(1)}%`}
           accent={churnRate > 5 ? STATUS.critical : STATUS.good}
           detail="Clientes perdidos no período"
-          tooltip="Quantidade de clientes em churn dividida pelo total de clientes."
+          tooltip={
+            refBounds
+              ? "Churns do mês de referência dividido pelos clientes que já estavam em carteira no início desse mês."
+              : "Churns de todos os tempos dividido pelo total de clientes que a carteira já teve (taxa vitalícia — selecione um Mês de Referência pra ver a taxa de um período específico)."
+          }
         />
       </div>
 
