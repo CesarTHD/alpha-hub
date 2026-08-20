@@ -37,6 +37,19 @@ type Contrato = {
 export function RenovacaoDialog({ clienteId, contrato }: { clienteId: string; contrato: Contrato }) {
   const [open, setOpen] = useState(false);
   const { pending, submit } = useServerAction(registrarRenovacao, () => setOpen(false));
+  const [valorContrato, setValorContrato] = useState(contrato.valorContrato);
+  const [tipoContrato, setTipoContrato] = useState(contrato.tipoContrato);
+
+  const valor = parseFloat(valorContrato);
+  const valorMensal = !isNaN(valor)
+    ? ({
+        MENSAL: valor,
+        TRIMESTRAL: valor / 3,
+        QUADRIMESTRAL: valor / 4,
+        SEMESTRAL: valor / 6,
+        ANUAL: valor / 12,
+      }[tipoContrato] ?? 0)
+    : 0;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -64,7 +77,7 @@ export function RenovacaoDialog({ clienteId, contrato }: { clienteId: string; co
           </div>
           <div className="space-y-2">
             <Label htmlFor="tipoContrato">Tipo de contrato</Label>
-            <Select name="tipoContrato" defaultValue={contrato.tipoContrato}>
+            <Select name="tipoContrato" defaultValue={tipoContrato} onValueChange={setTipoContrato}>
               <SelectTrigger id="tipoContrato" className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -85,7 +98,8 @@ export function RenovacaoDialog({ clienteId, contrato }: { clienteId: string; co
                 name="valorContrato"
                 type="number"
                 step="0.01"
-                defaultValue={contrato.valorContrato}
+                value={valorContrato}
+                onChange={(e) => setValorContrato(e.target.value)}
                 required
               />
             </div>
@@ -96,7 +110,8 @@ export function RenovacaoDialog({ clienteId, contrato }: { clienteId: string; co
                 name="valorMensal"
                 type="number"
                 step="0.01"
-                defaultValue={contrato.valorMensal}
+                value={valorMensal}
+                readOnly
                 required
               />
             </div>
