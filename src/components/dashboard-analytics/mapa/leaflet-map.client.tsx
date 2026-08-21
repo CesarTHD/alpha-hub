@@ -132,14 +132,28 @@ function FitBounds({ pontos }: { pontos: Array<{ lat: number; lng: number }> }) 
   return null;
 }
 
+/** Leaflet só reajusta o tamanho dos tiles em resize da *janela* — quando o
+ *  container muda de tamanho por CSS (ex.: entrar em tela cheia), é preciso
+ *  chamar invalidateSize() manualmente. */
+function InvalidateOnChange({ trigger }: { trigger: unknown }) {
+  const map = useMap();
+  useEffect(() => {
+    const id = window.setTimeout(() => map.invalidateSize(), 50);
+    return () => window.clearTimeout(id);
+  }, [trigger, map]);
+  return null;
+}
+
 export default function LeafletMap({
   clientePoints,
   franquiaPoints,
   camadas,
+  fullscreen,
 }: {
   clientePoints: ClienteGeoPoint[];
   franquiaPoints: FranquiaGeoPoint[];
   camadas: { franquias: boolean; clientes: boolean; heatmap: boolean };
+  fullscreen: boolean;
 }) {
   const todosOsPontos = useMemo(() => [...clientePoints, ...franquiaPoints], [clientePoints, franquiaPoints]);
 
@@ -150,6 +164,7 @@ export default function LeafletMap({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <FitBounds pontos={todosOsPontos} />
+      <InvalidateOnChange trigger={fullscreen} />
       {camadas.heatmap && <HeatmapLayer pontos={clientePoints} />}
       {camadas.clientes && <ClienteClusterLayer pontos={clientePoints} />}
       {camadas.franquias && <FranquiasLayer pontos={franquiaPoints} />}
