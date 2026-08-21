@@ -57,13 +57,15 @@ function normalizar(texto: string): string {
     .trim();
 }
 
+function tokenizar(texto: string): string[] {
+  return normalizar(texto)
+    .split(/\s+/)
+    // length > 1 descarta letra solta (ex.: "Anselmo's" -> "anselmo s")
+    .filter((p) => p.length > 1 && !RUIDO.has(p) && !/^\d+$/.test(p));
+}
+
 function palavrasSignificativas(texto: string): Set<string> {
-  return new Set(
-    normalizar(texto)
-      .split(/\s+/)
-      // length > 1 descarta letra solta (ex.: "Anselmo's" -> "anselmo s")
-      .filter((p) => p.length > 1 && !RUIDO.has(p) && !/^\d+$/.test(p)),
-  );
+  return new Set(tokenizar(texto));
 }
 
 function contemTodas(alvo: Set<string>, doc: Set<string>): boolean {
@@ -106,4 +108,118 @@ export function encontrarCandidatos(nomeCliente: string, documentos: D4SignDocum
  * confiança ALTA se "contém todas" já bastasse. */
 export function nomeCasaExatamente(nomeCliente: string, nomeDocumento: string): boolean {
   return mesmoConjunto(palavrasSignificativas(nomeCliente), palavrasSignificativas(nomeDocumento));
+}
+
+// --- Fallback fuzzy: só entra em ação quando encontrarCandidatos() não achou nada -------------
+//
+// A exigência de "contém todas as palavras" (encontrarCandidatos) erra por falta em casos legítimos
+// de erro de digitação ("Pampula" no cliente vs "Pampulha" no documento), plural/singular
+// ("Coxinhas" vs "Coxinha") e palavra composta grafada junta/separada ("Hotdog" vs "Hot Dog").
+// O fuzzy match abaixo tolera esses casos, mas com uma trava importante: descritores de categoria
+// que aparecem em muitos documentos ("pizzaria", "burguer", "restaurante"...) não contam como
+// palavra que precisa bater — só as palavras ESPECÍFICAS do nome do cliente (as raras, que de fato
+// identificam QUAL cliente é) precisam ter equivalente no documento. Isso evita o falso positivo
+// mais perigoso do domínio: duas unidades da mesma marca ("Trilhas da Amazônia Recreio" vs
+// "...Copacabana") não podem ser confundidas só porque compartilham as palavras genéricas da marca.
+
+/** Palavra em FREQUENCIA_GENERICA_MIN+ documentos é descritor de categoria/segmento (pizzaria,
+ * burguer, restaurante...), não identifica QUAL cliente é — pode ficar de fora do fuzzy match. */
+const FREQUENCIA_GENERICA_MIN = 15;
+
+/** Conta em quantos documentos (considerados, nunca Cancelado) cada palavra significativa aparece
+ * — usado por encontrarCandidatosFuzzy pra distinguir descritor genérico de palavra específica. */
+export function calcularFrequenciaPalavras(documentos: D4SignDocumentoResumo[]): Map<string, number> {
+  const frequencia = new Map<string, number>();
+  for (const doc of documentos) {
+    if (!STATUS_CONSIDERADOS.has(doc.statusName)) continue;
+    for (const palavra of palavrasSignificativas(doc.nameDoc)) {
+      frequencia.set(palavra, (frequencia.get(palavra) ?? 0) + 1);
+    }
+  }
+  return frequencia;
+}
+
+function levenshtein(a: string, b: string): number {
+  const linhas = a.length + 1;
+  const colunas = b.length + 1;
+  const dp: number[][] = Array.from({ length: linhas }, () => new Array(colunas).fill(0));
+  for (let i = 0; i < linhas; i++) dp[i][0] = i;
+  for (let j = 0; j < colunas; j++) dp[0][j] = j;
+  for (let i = 1; i < linhas; i++) {
+    for (let j = 1; j < colunas; j++) {
+      dp[i][j] =
+        a[i - 1] === b[j - 1]
+          ? dp[i - 1][j - 1]
+          : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[linhas - 1][colunas - 1];
+}
+
+/** Duas palavras "significam a mesma coisa" pra fins de match: idênticas, ou próximas o bastante
+ * (erro de digitação, plural/singular) pra não ser coincidência. Palavra curta (<=3 letras) exige
+ * igualdade exata — sigla/abreviação curta demais pra tolerar distância sem virar colisão (ex.:
+ * "jm" vs "pk"). */
+function palavrasEquivalentes(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (a.length <= 3 || b.length <= 3) return false;
+  const distanciaMaxima = Math.max(a.length, b.length) <= 6 ? 1 : 2;
+  return levenshtein(a, b) <= distanciaMaxima;
+}
+
+/** true se a palavra do cliente bate com algum token do documento — direto, ou com dois tokens
+ * ADJACENTES do documento concatenados (cobre "Hotdog" no cliente vs "Hot Dog" no documento).
+ *
+ * Só considera como alvo válido um token do documento que TAMBÉM seja específico (raro no
+ * corpus) — senão a tolerância por distância de edição vira uma roleta: uma palavra específica
+ * curta (ex.: "cast") acaba "batendo" por 1 letra de diferença com um descritor genérico comum
+ * (ex.: "casa", em 55 documentos) que não tem nada a ver com o cliente. Toleramos digitação
+ * errada entre duas palavras raras — não entre uma rara e uma genérica qualquer. */
+function encontraEquivalente(
+  palavraAlvo: string,
+  tokensDocumento: string[],
+  frequenciaPalavras: Map<string, number>,
+): boolean {
+  const especifico = (p: string) => (frequenciaPalavras.get(p) ?? 0) < FREQUENCIA_GENERICA_MIN;
+  const tokensEspecificos = tokensDocumento.filter(especifico);
+  if (tokensEspecificos.some((t) => palavrasEquivalentes(t, palavraAlvo))) return true;
+  for (let i = 0; i < tokensDocumento.length - 1; i++) {
+    const par = tokensDocumento[i] + tokensDocumento[i + 1];
+    if (especifico(par) && palavrasEquivalentes(par, palavraAlvo)) return true;
+  }
+  return false;
+}
+
+/**
+ * Fallback de encontrarCandidatos() pra quando ela não acha nada: mesma ideia ("documento precisa
+ * ter todas as palavras que identificam o cliente"), mas tolerando erro de digitação, plural/
+ * singular e palavra composta junta/separada, e ignorando descritores de categoria genéricos
+ * demais pra identificar o cliente (ver calcularFrequenciaPalavras).
+ *
+ * Sempre BAIXA confiança pra quem chama — o nome bateu por aproximação, não por igualdade; exige
+ * revisão manual mesmo que os dados do contrato depois batam com o cadastro.
+ */
+export function encontrarCandidatosFuzzy(
+  nomeCliente: string,
+  documentos: D4SignDocumentoResumo[],
+  frequenciaPalavras: Map<string, number>,
+): CandidatoMatch[] {
+  const alvo = tokenizar(nomeCliente);
+  if (alvo.length === 0) return [];
+
+  const especificas = alvo.filter((p) => (frequenciaPalavras.get(p) ?? 0) < FREQUENCIA_GENERICA_MIN);
+  // Uma só palavra específica não tem outra pra "confirmar" o match — vira roleta, principalmente
+  // com nome próprio/sobrenome comum (ex.: "Fonseca", "Santana", "Caio"), que é raro no corpus
+  // (não conta como descritor genérico) mas ainda assim comum demais como identificador sozinho:
+  // some documento é o distrato/contrato de alguma pessoa que por coincidência tem esse mesmo
+  // nome. Exige pelo menos duas palavras específicas se confirmando uma à outra.
+  if (especificas.length < 2) return [];
+
+  return documentos
+    .filter((doc) => STATUS_CONSIDERADOS.has(doc.statusName))
+    .filter((doc) => {
+      const tokensDoc = tokenizar(doc.nameDoc);
+      return especificas.every((palavraAlvo) => encontraEquivalente(palavraAlvo, tokensDoc, frequenciaPalavras));
+    })
+    .map((doc) => ({ uuidDocumento: doc.uuidDoc, nomeDocumento: doc.nameDoc, statusName: doc.statusName }));
 }

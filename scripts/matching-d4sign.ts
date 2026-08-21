@@ -6,6 +6,13 @@
  * documentos "Finalizado" E "Aguardando Assinaturas"/"Aguardando Signatários" (nunca
  * "Cancelado") — Finalizado sempre tem prioridade quando existe.
  *
+ * Cliente que não acha nenhum candidato pelo match exato (encontrarCandidatos) cai num fallback
+ * fuzzy (encontrarCandidatosFuzzy, em src/lib/d4sign/match.ts) que tolera erro de digitação,
+ * plural/singular e palavra composta junta/separada — mas exige igual as palavras que de fato
+ * IDENTIFICAM o cliente (ignora descritor de categoria genérico tipo "pizzaria"/"burguer", comum
+ * demais pra distinguir cliente). Proposta vinda desse fallback é sempre confiança BAIXA, mesmo
+ * que só haja um candidato — o nome bateu por aproximação, não por igualdade.
+ *
  * Um cliente pode ter mais de um candidato no mesmo nível de prioridade (ex.: dois documentos
  * "Finalizado" com nome parecido — contrato antigo + renovação). Nesse caso, se o cliente já tem
  * um contrato cadastrado pra comparar, baixa cada candidato, extrai os dados via regex
@@ -26,7 +33,14 @@
 import "dotenv/config";
 import { db } from "@/lib/db";
 import { downloadD4SignDocumentPdf, listarTodosDocumentosD4Sign, D4SignError } from "@/lib/d4sign/client";
-import { encontrarCandidatos, nomeCasaExatamente, PRIORIDADE_STATUS, type CandidatoMatch } from "@/lib/d4sign/match";
+import {
+  encontrarCandidatos,
+  encontrarCandidatosFuzzy,
+  calcularFrequenciaPalavras,
+  nomeCasaExatamente,
+  PRIORIDADE_STATUS,
+  type CandidatoMatch,
+} from "@/lib/d4sign/match";
 import { extrairDataCriacaoDocumento } from "@/lib/d4sign/audit";
 import { extractPdfText } from "@/lib/pdf/extract-text";
 import { extractContratoFromText, type ContratoExtraido } from "@/lib/contrato-extracao";
@@ -91,6 +105,7 @@ async function main() {
   const documentos = await listarTodosDocumentosD4Sign();
   console.log(`${documentos.length} documento(s) no total.`);
   console.log(`Orçamento de downloads pra desambiguação por conteúdo: ${orcamentoDownloads}.`);
+  const frequenciaPalavras = calcularFrequenciaPalavras(documentos);
 
   const propostasExistentes = await db.propostaD4Sign.findMany({
     select: { clienteId: true, uuidDocumento: true, status: true },
@@ -99,17 +114,24 @@ async function main() {
 
   const novasPropostas: { clienteId: string; uuidDocumento: string; nomeDocumento: string; confianca: string }[] = [];
   let semMatch = 0;
+  let viaFuzzy = 0;
   let desambiguadosPorConteudo = 0;
   let precisariamDesambiguar = 0;
   let precisariamDesambiguarComContrato = 0;
   let rateLimitAtingido = false;
 
   for (const cliente of clientes) {
-    const todosCandidatos = encontrarCandidatos(cliente.nome, documentos);
+    let todosCandidatos = encontrarCandidatos(cliente.nome, documentos);
+    let origemFuzzy = false;
+    if (todosCandidatos.length === 0) {
+      todosCandidatos = encontrarCandidatosFuzzy(cliente.nome, documentos, frequenciaPalavras);
+      origemFuzzy = todosCandidatos.length > 0;
+    }
     if (todosCandidatos.length === 0) {
       semMatch++;
       continue;
     }
+    if (origemFuzzy) viaFuzzy++;
 
     // Percorre os níveis de prioridade (Finalizado primeiro) até achar um com candidato ainda
     // não proposto. Só desce de nível se TODOS os candidatos do nível atual já foram REJEITADA —
@@ -135,8 +157,9 @@ async function main() {
 
     if (vencedores.length === 1) {
       const c = vencedores[0];
-      const confianca =
-        c.statusName === "Finalizado" && todosCandidatos.length === 1 && nomeCasaExatamente(cliente.nome, c.nomeDocumento)
+      const confianca = origemFuzzy
+        ? "BAIXA"
+        : c.statusName === "Finalizado" && todosCandidatos.length === 1 && nomeCasaExatamente(cliente.nome, c.nomeDocumento)
           ? "ALTA"
           : "MEDIA";
       novasPropostas.push({ clienteId: cliente.id, uuidDocumento: c.uuidDocumento, nomeDocumento: c.nomeDocumento, confianca });
@@ -157,7 +180,12 @@ async function main() {
 
     if (!atual || orcamentoDownloads <= 0 || rateLimitAtingido) {
       for (const c of vencedores) {
-        novasPropostas.push({ clienteId: cliente.id, uuidDocumento: c.uuidDocumento, nomeDocumento: c.nomeDocumento, confianca: "MEDIA" });
+        novasPropostas.push({
+          clienteId: cliente.id,
+          uuidDocumento: c.uuidDocumento,
+          nomeDocumento: c.nomeDocumento,
+          confianca: origemFuzzy ? "BAIXA" : "MEDIA",
+        });
       }
       continue;
     }
@@ -184,7 +212,12 @@ async function main() {
 
     if (pontuados.length === 0) {
       for (const c of vencedores) {
-        novasPropostas.push({ clienteId: cliente.id, uuidDocumento: c.uuidDocumento, nomeDocumento: c.nomeDocumento, confianca: "MEDIA" });
+        novasPropostas.push({
+          clienteId: cliente.id,
+          uuidDocumento: c.uuidDocumento,
+          nomeDocumento: c.nomeDocumento,
+          confianca: origemFuzzy ? "BAIXA" : "MEDIA",
+        });
       }
       continue;
     }
@@ -196,16 +229,18 @@ async function main() {
         clienteId: cliente.id,
         uuidDocumento: p.candidato.uuidDocumento,
         nomeDocumento: p.candidato.nomeDocumento,
-        confianca: "MEDIA",
+        confianca: origemFuzzy ? "BAIXA" : "MEDIA",
       });
     }
   }
 
   const alta = novasPropostas.filter((p) => p.confianca === "ALTA").length;
   const media = novasPropostas.filter((p) => p.confianca === "MEDIA").length;
+  const baixa = novasPropostas.filter((p) => p.confianca === "BAIXA").length;
   console.log(
-    `\nNovas propostas: ${novasPropostas.length} (ALTA=${alta}, MEDIA=${media}). Sem match: ${semMatch}. ` +
-      `Desambiguados por conteúdo: ${desambiguadosPorConteudo}. Downloads restantes no orçamento: ${orcamentoDownloads}.`,
+    `\nNovas propostas: ${novasPropostas.length} (ALTA=${alta}, MEDIA=${media}, BAIXA=${baixa} via fuzzy). Sem match: ${semMatch}. ` +
+      `Clientes resolvidos só via fuzzy: ${viaFuzzy}. Desambiguados por conteúdo: ${desambiguadosPorConteudo}. ` +
+      `Downloads restantes no orçamento: ${orcamentoDownloads}.`,
   );
   console.log(
     `Clientes com candidatos empatados no mesmo nível: ${precisariamDesambiguar} ` +

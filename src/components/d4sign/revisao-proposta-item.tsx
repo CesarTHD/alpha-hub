@@ -151,8 +151,8 @@ export function RevisaoPropostaItem({
           </p>
           <p className="text-sm text-muted-foreground">Candidato original (match automático): {proposta.nomeDocumento}</p>
         </div>
-        <Badge variant={proposta.confianca === "ALTA" ? "default" : "outline"}>
-          Confiança {proposta.confianca === "ALTA" ? "alta" : "média"}
+        <Badge variant={proposta.confianca === "ALTA" ? "default" : proposta.confianca === "BAIXA" ? "destructive" : "outline"}>
+          Confiança {proposta.confianca === "ALTA" ? "alta" : proposta.confianca === "BAIXA" ? "baixa (match por aproximação)" : "média"}
         </Badge>
       </div>
 

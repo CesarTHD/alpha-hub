@@ -9,11 +9,20 @@
  *   - A(s) única(s) divergência(s) são:
  *       · "Renovação automática" (nunca é sobrescrita — a aplicação nunca mexe em Contrato,
  *         só em Cliente, igual à ação manual); e/ou
- *       · "Início do contrato", desde que a diferença seja menor que 30 dias.
+ *       · "Início do contrato", desde que a diferença seja menor que 30 dias; e/ou
+ *       · "Tipo de contrato" cadastrado como Mensal e o contrato assinado voltando como Anual
+ *         (mantém Mensal no banco — a aplicação nunca mexe em Contrato) — e, junto com essa,
+ *         "Valor mensal" também pode divergir (o valor mensal calculado do PDF sai baixo porque
+ *         a extração divide o valor do contrato por 12 mesmo ele já sendo o valor mensal real).
  *
- * Qualquer outra divergência (plano, tipo, valor do contrato, valor mensal, ou início do
- * contrato com 30+ dias de diferença) deixa a proposta PENDENTE pra revisão manual em
- * /d4sign-revisao — o script nunca aplica nesses casos.
+ * Qualquer outra divergência (plano, valor do contrato, ou início do contrato com 30+ dias de
+ * diferença) deixa a proposta PENDENTE pra revisão manual em /d4sign-revisao — o script nunca
+ * aplica nesses casos.
+ *
+ * Proposta com confiança BAIXA (match por nome via fallback fuzzy em scripts/matching-d4sign.ts)
+ * nunca é aplicada automaticamente, nem entra na comparação de conteúdo — o próprio documento
+ * pode ser de outro cliente, então não faz sentido confiar em nenhuma divergência ou ausência
+ * dela; fica sempre pra revisão manual conferir o nome primeiro.
  *
  * Assim como a aplicação manual, isso NUNCA escreve em `contratos` — só em `clientes`
  * (dados cadastrais + link do D4Sign) e marca a proposta como APLICADA.
@@ -43,7 +52,7 @@ import { downloadD4SignDocumentPdf, D4SignError } from "@/lib/d4sign/client";
 import { buildD4SignViewLink } from "@/lib/d4sign/link";
 import { normalizarDocumento } from "@/lib/cnpj";
 import { extrairContratoDePdf } from "@/lib/actions/contrato-pdf-pipeline";
-import { compararContrato, type ContratoAtual } from "@/lib/contrato-comparacao";
+import { compararContrato, type ContratoAtual, type Inconsistencia } from "@/lib/contrato-comparacao";
 import type { ContratoExtraido } from "@/lib/contrato-extracao";
 
 const DOWNLOADS_PADRAO = 100; // conservador: não dá pra confirmar a cota real via headers da API do D4Sign.
@@ -63,14 +72,25 @@ function diferencaEmDias(a: string, b: Date): number {
   return Math.abs((dataA.getTime() - dataB.getTime()) / 86_400_000);
 }
 
+/** Mensal cadastrado, contrato assinado voltando como Anual — mantém Mensal no banco (a
+ * aplicação nunca mexe em Contrato) e tolera essa divergência de tipo. */
+function isTipoMensalParaAnual(d: Inconsistencia): boolean {
+  return d.campo === "Tipo de contrato" && d.cadastrado === "MENSAL" && d.contrato === "ANUAL";
+}
+
 /** Decide se dá pra aplicar sem revisão humana: nenhuma divergência, ou só divergências
  * toleradas (e, no caso de "Início do contrato", dentro do limite de dias). */
 function podeAplicarAutomaticamente(
-  diffs: { campo: string }[],
+  diffs: Inconsistencia[],
   extraido: ContratoExtraido,
   atual: ContratoAtual,
 ): boolean {
+  const tipoMensalParaAnual = diffs.some(isTipoMensalParaAnual);
   return diffs.every((d) => {
+    if (isTipoMensalParaAnual(d)) return true;
+    // Companheira usual do caso acima: o valor mensal calculado do PDF sai baixo porque a
+    // extração divide o valor do contrato (já mensal) por 12, como se fosse valor anual.
+    if (d.campo === "Valor mensal" && tipoMensalParaAnual) return true;
     if (!DIVERGENCIAS_TOLERADAS.has(d.campo)) return false;
     if (d.campo === "Início do contrato") {
       if (!extraido.inicioContrato) return false;
@@ -132,12 +152,23 @@ async function main() {
   let divergenciaNaoTolerada = 0;
   let erroDownloadOuExtracao = 0;
   let documentoDuplicado = 0;
+  let confiancaBaixa = 0;
   let rateLimitAtingido = false;
 
   for (const proposta of propostas) {
     if (orcamentoDownloads <= 0 || rateLimitAtingido) break;
 
     const cliente = proposta.cliente;
+
+    if (proposta.confianca === "BAIXA") {
+      // Veio do fallback fuzzy do match por nome (scripts/matching-d4sign.ts) — o próprio
+      // documento pode ser de outro cliente, então nem vale gastar download comparando o
+      // contrato: precisa de um humano conferindo o nome antes de qualquer coisa.
+      console.log(`  [${cliente.nome}] confiança BAIXA (match por aproximação) — revisão manual.`);
+      confiancaBaixa++;
+      continue;
+    }
+
     const contratoAtual = cliente.contratos.find(
       (c) => c.status === "ATIVO" || c.status === "PAUSADO" || c.status === "VENCIDO" || c.status === "ENCERRADO",
     );
@@ -258,10 +289,19 @@ async function main() {
 
   console.log(
     `\n${dryRun ? "[dry-run] Aplicaria" : "Aplicadas"}: ${aplicadas}. ` +
-      `Sem contrato pra comparar: ${semContrato}. Divergência fora do tolerado: ${divergenciaNaoTolerada}. ` +
-      `Sem CPF/CNPJ: ${semDocumento}. Documento duplicado: ${documentoDuplicado}. Erros: ${erroDownloadOuExtracao}.`,
+      `Confiança BAIXA (match por aproximação): ${confiancaBaixa}. Sem contrato pra comparar: ${semContrato}. ` +
+      `Divergência fora do tolerado: ${divergenciaNaoTolerada}. Sem CPF/CNPJ: ${semDocumento}. ` +
+      `Documento duplicado: ${documentoDuplicado}. Erros: ${erroDownloadOuExtracao}.`,
   );
-  const restantes = propostas.length - aplicadas - semContrato - divergenciaNaoTolerada - semDocumento - documentoDuplicado - erroDownloadOuExtracao;
+  const restantes =
+    propostas.length -
+    aplicadas -
+    confiancaBaixa -
+    semContrato -
+    divergenciaNaoTolerada -
+    semDocumento -
+    documentoDuplicado -
+    erroDownloadOuExtracao;
   if (rateLimitAtingido || orcamentoDownloads <= 0) {
     console.log(`Cota de downloads esgotada nesta execução — ${restantes} proposta(s) ainda não processada(s). Rode de novo mais tarde.`);
   }

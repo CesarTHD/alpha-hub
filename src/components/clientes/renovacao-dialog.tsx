@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,7 +34,17 @@ type Contrato = {
   renovacaoAutomatica: boolean;
 };
 
-export function RenovacaoDialog({ clienteId, contrato }: { clienteId: string; contrato: Contrato }) {
+export function RenovacaoDialog({
+  clienteId,
+  contrato,
+  trigger,
+}: {
+  clienteId: string;
+  contrato: Contrato;
+  /** Trigger customizado (ex.: nome do cliente numa tabela) — por padrão,
+   *  o botão "Registrar renovação" usado na página de detalhe do cliente. */
+  trigger?: ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const { pending, submit } = useServerAction(registrarRenovacao, () => setOpen(false));
   const [valorContrato, setValorContrato] = useState(contrato.valorContrato);
@@ -54,9 +64,11 @@ export function RenovacaoDialog({ clienteId, contrato }: { clienteId: string; co
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm">
-          <RefreshCw className="mr-1 h-4 w-4" /> Registrar renovação
-        </Button>
+        {trigger ?? (
+          <Button size="sm">
+            <RefreshCw className="mr-1 h-4 w-4" /> Registrar renovação
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

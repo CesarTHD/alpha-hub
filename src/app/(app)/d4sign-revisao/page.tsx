@@ -62,11 +62,12 @@ export default async function D4SignRevisaoPage({
     orderBy: { createdAt: "asc" },
   });
 
-  // Confiança ALTA primeiro — mais provável de já estar certo, mais rápido de revisar.
-  const ordenadas = [...propostas].sort((a, b) => {
-    if (a.confianca === b.confianca) return 0;
-    return a.confianca === "ALTA" ? -1 : 1;
-  });
+  // Confiança ALTA primeiro (mais provável de já estar certo, mais rápido de revisar), BAIXA por
+  // último (veio do fallback fuzzy do match por nome — merece mais atenção na revisão).
+  const ORDEM_CONFIANCA: Record<string, number> = { ALTA: 0, MEDIA: 1, BAIXA: 2 };
+  const ordenadas = [...propostas].sort(
+    (a, b) => (ORDEM_CONFIANCA[a.confianca] ?? 1) - (ORDEM_CONFIANCA[b.confianca] ?? 1),
+  );
 
   const segmentosCadastrados = await db.cliente.findMany({
     where: { deletedAt: null, segmento: { not: null } },
